@@ -104,11 +104,6 @@ jobs:
 
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
 
-      - name: Initialize and Update Submodules
-        run: |
-          set -euxo pipefail
-          git submodule update --init --recursive
-
       - name: Setup KernelSU (Submodule Integration)
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
@@ -118,7 +113,7 @@ jobs:
     
           # Check if KernelSU-Next exists before proceeding
           if [ -d "KernelSU-Next/kernel" ]; then
-            cd KernelSU-Next/kernel
+            cd kernel_platform/KernelSU-Next/kernel
             KSU_VERSION=$(git describe --tags --abbrev=0)
             echo "KSUVER=${KSU_VERSION}" >> $GITHUB_ENV
             sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" Makefile
