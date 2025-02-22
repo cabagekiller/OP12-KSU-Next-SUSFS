@@ -1,0 +1,245 @@
+name: Build and Release Kernel submodule testing
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+  ROOT_DIR_PREFIX: "OP12-A15"
+  BRANCH: "android14-6.1"
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Important for submodules
+          submodules: recursive
+
+
+      - name: Free Disk Space & Update APT
+        run: |
+          set -euxo pipefail
+          sudo apt-get update -qq && sudo apt-get install -qq curl
+          curl -fsSL https://raw.githubusercontent.com/kou/arrow/e49d8ae15583ceff03237571569099a6ad62be32/ci/scripts/util_free_space.sh | bash
+
+      - name: Setup Build Environment
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            python3-pip curl git zip unzip gcc g++ make ninja-build file bc bison flex libssl-dev libelf-dev wget \
+            build-essential python3-dev python3-setuptools rsync ccache
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ${{ runner.os }}-ccache-${{ hashFiles('**/CMakeLists.txt') }}
+
+      - name: Install Latest Pahole
+        run: |
+          set -euxo pipefail
+          sudo apt-get remove --purge -y dwarves
+          sudo apt-get install -y git build-essential libdw-dev zlib1g-dev
+          git clone --recurse-submodules https://git.kernel.org/pub/scm/devel/pahole/pahole.git
+          cd pahole
+          cmake .
+          sudo make install
+
+      - name: Setup Python and Repo Tool
+        run: |
+          set -euxo pipefail
+          python3 -m pip install --upgrade pip
+          pip3 install gitpython xmltodict
+          mkdir -p "$HOME/bin"
+          wget -O "$HOME/bin/repo" https://storage.googleapis.com/git-repo-downloads/repo
+          chmod a+x "$HOME/bin/repo"
+          echo "$HOME/bin" >> $GITHUB_PATH
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+
+      - name: Configure Build Directory
+        id: build_dir
+        run: |
+          set -euxo pipefail
+          ROOT_DIR="${ROOT_DIR_PREFIX}-$(date +'%Y-%m-%d-%I-%M-%p')-release"
+          echo "ROOT_DIR=${ROOT_DIR}" >> $GITHUB_ENV
+          BUILD_DIR="builds/${ROOT_DIR}"
+          echo "BUILD_DIR=${BUILD_DIR}" >> $GITHUB_ENV
+          mkdir -p "${BUILD_DIR}"
+          echo "Build directory set to ${BUILD_DIR}"
+
+      - name: Clone Required Repositories
+        working-directory: ${{ env.BUILD_DIR }}
+        run: |
+          set -euxo pipefail
+          git clone --recursive https://github.com/TheWildJames/AnyKernel3.git -b "$BRANCH"
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
+          git clone https://github.com/WildPlusKernel/kernel_patches.git
+
+      - name: Setup Kernel Source
+        working-directory: ${{ env.BUILD_DIR }}
+        run: |
+          set -euxo pipefail
+          KERNEL_DIR="kernel_platform/oneplus12_v"
+          echo "KERNEL_DIR=${KERNEL_DIR}" >> $GITHUB_ENV
+          mkdir -p "${KERNEL_DIR}"
+          cd "${KERNEL_DIR}"
+          repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus12_v.xml --depth=1
+
+          sync_attempts=3
+          for i in $(seq 1 $sync_attempts); do
+              repo sync -c -j"$(nproc)" --force-sync --no-clone-bundle --no-tags
+              if [ $? -eq 0 ]; then break; fi
+              echo "Repo sync failed. Attempt $i of $sync_attempts"
+              if [ $i -lt $sync_attempts ]; then sleep 60; fi
+          done
+          [ $? -ne 0 ] && { echo "Repo sync failed after multiple attempts."; exit 1; }
+
+          rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
+
+      - name: Initialize and Update Submodules
+        run: |
+          set -euxo pipefail
+          git submodule update --init --recursive
+
+      - name: Setup KernelSU (Submodule Integration)
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          set -euxo pipefail
+          # Ensure submodules are updated (if necessary)
+          git submodule update --init --recursive
+    
+          # Check if KernelSU-Next exists before proceeding
+          if [ -d "KernelSU-Next/kernel" ]; then
+            cd KernelSU-Next/kernel
+            KSU_VERSION=$(git describe --tags --abbrev=0)
+            echo "KSUVER=${KSU_VERSION}" >> $GITHUB_ENV
+            sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" Makefile
+          else
+            echo "Error: KernelSU-Next directory not found!"
+            exit 1
+          fi
+
+      - name: Setup SUSFS
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          set -euxo pipefail
+          SUSFS_PATCHES="../../../susfs4ksu/kernel_patches"
+          KERNEL_PATCHES="../../../kernel_patches"
+          KSU_NEXT="KernelSU-Next"
+
+          mkdir -p ./common/fs ./common/include/linux
+          cp "${SUSFS_PATCHES}/fs/"* ./common/fs/
+          cp "${SUSFS_PATCHES}/include/linux/"* ./common/include/linux/
+          cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
+          cp "${SUSFS_PATCHES}/50_add_susfs_in_gki-android14-6.1.patch" ./common/
+          cp "${KERNEL_PATCHES}/69_hide_stuff.patch" ./common/
+          cp "${KERNEL_PATCHES}/${KSU_NEXT}-Implement-SUSFS-v1.5.5-Universal.patch" "${KSU_NEXT}/"
+
+          cd "${KSU_NEXT}"
+          patch -p1 --forward < "${KSU_NEXT}-Implement-SUSFS-v1.5.5-Universal.patch" || echo "Warning: KernelSU SUSFS patch may have been already applied or failed."
+          cd ../common
+          patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || echo "Warning: SUSFS patch may have been already applied."
+          patch -p1 -F 3 < 69_hide_stuff.patch || echo "Warning: 69_hide_stuff patch may have been already applied."
+
+          sed -i '/obj-$(CONFIG_KSU_SUSFS_SUS_SU) += sus_su.o/d' ./fs/Makefile
+          git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)" || true)
+          cd ..
+          git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)" || true)
+          git rm --cached KernelSU-Next || true
+
+      - name: Configure Kernel
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          set -euxo pipefail
+          # Add SUSFS configuration settings
+          echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfig
+          
+          # Add additional tmpfs config setting
+          echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
+       
+          
+          # Remove defconfig check
+          sed -i '2s/check_defconfig//' ./common/build.config.gki
+
+      - name: Build Kernel
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          set -euxo pipefail
+          mkdir -p out
+          start_time=$(date +%s)
+          export PATH="/usr/lib/ccache:$PATH"
+          ./build_with_bazel.py \
+            -t pineapple gki \
+            --jobs="$(nproc --all)" --verbose_failures --config=stamp \
+            --user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom \
+            --ignore_missing_projects -o "$(pwd)/out"
+          end_time=$(date +%s)
+          build_time=$((end_time - start_time))
+          echo "Kernel build time: $build_time seconds"
+
+      - name: Create ZIP Package
+        working-directory: ${{ env.BUILD_DIR }}
+        run: |
+          set -euxo pipefail
+          mkdir -p AnyKernel3
+          touch AnyKernel3/Image
+          cp kernel_platform/oneplus12_v/kernel_platform/out/dist/Image AnyKernel3/Image || { echo "Error copying Image file"; exit 1; }
+          cd AnyKernel3
+          ZIP_NAME="Cabage-OP12-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
+          echo "Creating zip file $ZIP_NAME..."
+          zip -r "../$ZIP_NAME" ./*
+          ls -lh "../$ZIP_NAME"
+          echo "zip_name=$ZIP_NAME" >> $GITHUB_ENV
+
+      - name: Set current timestamp
+        id: timestamp
+        run: echo "CURRENT_TIMESTAMP=$(date -u +'%Y.%m.%d-%H%M%S')" >> $GITHUB_ENV
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: ${{ env.BUILD_DIR }}/${{ env.zip_name }}
+          tag_name: ${{ env.KSUVER }}-${{ env.ROOT_DIR_PREFIX }}
+          name: Release ${{ env.ROOT_DIR_PREFIX }} ${{ env.zip_name }}
+          body: |
+             Release for ${{ env.ROOT_DIR_PREFIX }} based on branch ${{ env.BRANCH }}
+             KSU Version: ${{ env.KSUVER }}
+             Timestamp: ${{ env.CURRENT_TIMESTAMP }}
+
+      - name: Upload Build Logs
+        uses: actions/upload-artifact@v4
+        if: ${{ always() && failure() }}
+        with:
+          name: build-logs
+          path: |
+            ${{ env.BUILD_DIR }}/kernel_platform/oneplus12_v/kernel_platform/out/*.log
+            ${{ env.BUILD_DIR }}/kernel_platform/oneplus12_v/kernel_platform/**/*.rej
+          retention-days: 5
+          if-no-files-found: error
