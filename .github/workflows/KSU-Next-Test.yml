@@ -142,32 +142,38 @@ jobs:
 
           # Patch KernelSU-Next (submodule):
           cd "${KSU_NEXT}"
-          pwd
-          ls -la
-          patch -p1 --forward < ksu-next_susfs-v1.5.5.patch || echo "Warning: KSU patch already applied"
-          
-          # Get KSU version and update Makefile (now using the *new* path):
           cd kernel
           KSU_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "Unknown")
           echo "KSUVER=${KSU_VERSION}" >> $GITHUB_ENV
           sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" Makefile
-          cd ../..
+          cd ..
+          pwd
+          ls -la
+          patch -p1 --forward < ksu-next_susfs-v1.5.5.patch || echo "Warning: KSU patch already applied"
+          
+          cd ..
 
           # Navigate to the *downloaded* kernel source's common directory:
           cd "${BUILD_DIR}/${KERNEL_DIR}/kernel_platform"  # CORRECT navigation
 
           # Create directories, copy files, and apply patches *within the downloaded kernel source*:
-          mkdir -p common/fs common/include/linux
-          cp "${SUSFS_PATCHES}/fs/"* common/fs/
-          cp "${SUSFS_PATCHES}/include/linux/"* common/include/linux/
-          cp "${SUSFS_PATCHES}/50_add_susfs_in_gki-android14-6.1.patch" common/  # Copy patches *into* common
-          cp "${KERNEL_PATCHES}/69_hide_stuff.patch" common/                    # Copy patches
-
+          cp "${SUSFS_PATCHES}/fs/sus_su.c" ./common/fs/
+          cp "${SUSFS_PATCHES}/fs/susfs.c" ./common/fs/
+          cp "${SUSFS_PATCHES}/include/linux/sus_su.h" ./common/include/linux/
+          cp "${SUSFS_PATCHES}/include/linux/susfs.h" ./common/include/linux/
+          cp "${SUSFS_PATCHES}/include/linux/susfs_def.h" ./common/include/linux/
+          cp "${SUSFS_PATCHES}/50_add_susfs_in_gki-android14-6.1.patch" ./common/
+          cp "${KERNEL_PATCHES}/69_hide_stuff.patch" ./common/         # Copy patches
+          cd ./common
           patch -p1 < common/50_add_susfs_in_gki-android14-6.1.patch || echo "Warning: SUSFS patch already applied"
           patch -p1 -F 3 < common/69_hide_stuff.patch || echo "Warning: 69_hide_stuff already applied"
 
           # Modify the Makefile (correct path):
-          sed -i '/obj-\$\(CONFIG_KSU_SUSFS_SUS_SU\) += sus_su.o/d' common/fs/Makefile
+          sed -i '/obj-\$\(CONFIG_KSU_SUSFS_SUS_SU\) += sus_su.o/d' /fs/Makefile
+          git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)" || true)
+          cd ..
+          git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)" || true)
+          git rm --cached KernelSU-Next || true
         shell: bash
 
       - name: Configure Kernel
