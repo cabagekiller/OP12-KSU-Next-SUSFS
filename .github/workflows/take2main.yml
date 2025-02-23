@@ -131,8 +131,8 @@ jobs:
         run: |
           set -euxo pipefail
 
-          SUSFS_PATCHES="susfs4ksu/kernel_patches"
-          KERNEL_PATCHES="kernel_patches"
+          SUSFS_PATCHES="${{ env.BUILD_DIR }}/susfs4ksu/kernel_patches"
+          KERNEL_PATCHES="${{ env.BUILD_DIR }}/kernel_patches"
           KSU_NEXT="kernel_platform/KernelSU-Next"
 
           # Clean up any previous attempts.  Force removal (-f) since it might be a directory now.
