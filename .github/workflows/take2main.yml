@@ -128,12 +128,12 @@ jobs:
           #fi
 
       - name: Setup SUSFS
-        working-directory: ${{ env.BUILD_DIR }}
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}
         run: |
           set -euxo pipefail
-          ls -la kernel_platform/KernelSU-Next
-          SUSFS_PATCHES="./susfs4ksu/kernel_patches"
-          KERNEL_PATCHES="./kernel_patches"
+          ls -la 
+          SUSFS_PATCHES="../../susfs4ksu/kernel_patches"
+          KERNEL_PATCHES="../../kernel_patches"
           KSU_NEXT="kernel_platform/KernelSU-Next"
 
           mkdir -p ./common/fs ./common/include/linux
