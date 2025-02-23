@@ -131,7 +131,7 @@ jobs:
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}
         run: |
           set -euxo pipefail
-          ls -la kernel_platform/
+          ls -la kernel_platform/KernelSU-Next
           SUSFS_PATCHES="../../susfs4ksu/kernel_patches"
           KERNEL_PATCHES="../../kernel_patches"
           KSU_NEXT="kernel_platform/KernelSU-Next"
