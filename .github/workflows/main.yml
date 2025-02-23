@@ -150,10 +150,9 @@ jobs:
 
           cd "${KSU_NEXT}"
           patch -p1 --forward < ksu-next_susfs-v1.5.5.patch || true
-          cd "${BUILD_DIR}"
+          cd "${BUILD_DIR}${KERNEL_DIR}"
           ls -l
-          cd "${KERNEL_DIR}"
-          ls -l
+          cd /common/
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
           patch -p1 -F 3 < 69_hide_stuff.patch || true
 
