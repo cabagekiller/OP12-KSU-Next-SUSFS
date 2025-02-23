@@ -183,7 +183,7 @@ jobs:
           # No need to cd, we're already in the root
 
       - name: Configure Kernel
-        working-directory: ${{ github.workspace }}/kernel_platform  # Inside your repo
+        working-directory: /home/runner/work/OP12-KSU-Next-SUSFS/OP12-KSU-Next-SUSFS/builds/OP12-A15-cabage-release/kernel_platform/oneplus12_v/kernel_platform/kernel_platform  # Inside your repo
         run: |
           set -euxo pipefail
           cat >> ./common/arch/arm64/configs/gki_defconfig <<EOF
@@ -210,7 +210,7 @@ jobs:
           sed -i '/check_defconfig/d' ./common/build.config.gki
 
       - name: Build Kernel
-        working-directory: ${{ github.workspace }}/kernel_platform # Inside your repo
+        working-directory: /home/runner/work/OP12-KSU-Next-SUSFS/OP12-KSU-Next-SUSFS/builds/OP12-A15-cabage-release/kernel_platform/oneplus12_v/kernel_platform/kernel_platform # Inside your repo
         run: |
           set -euxo pipefail
           mkdir -p out
@@ -227,7 +227,7 @@ jobs:
           echo "Kernel build time: $build_time seconds"
 
       - name: Create ZIP Package
-        working-directory: ${{ env.BUILD_DIR }}
+        working-directory: /home/runner/work/OP12-KSU-Next-SUSFS/OP12-KSU-Next-SUSFS/builds/OP12-A15-cabage-release
         run: |
           set -euxo pipefail
           cd AnyKernel3 || exit 1
@@ -235,7 +235,7 @@ jobs:
           ZIP_NAME="Cabage-OP12-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
           echo "Creating zip file $ZIP_NAME..."
 
-          cp ${{ github.workspace }}/kernel_platform/out/dist/Image . || { echo "Error copying Image file"; exit 1; }
+          cp /home/runner/work/OP12-KSU-Next-SUSFS/OP12-KSU-Next-SUSFS/builds/OP12-A15-cabage-release/kernel_platform/oneplus12_v/kernel_platform/out/dist/Image . || { echo "Error copying Image file"; exit 1; }
           zip -r "../$ZIP_NAME" ./* || { echo "Error creating zip"; exit 1; }
           ls -lh "../$ZIP_NAME"
           echo "zip_name=$ZIP_NAME" >> $GITHUB_ENV
@@ -251,7 +251,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: ${{ env.BUILD_DIR }}/${{ env.zip_name }}
+          files: /home/runner/work/OP12-KSU-Next-SUSFS/OP12-KSU-Next-SUSFS/builds/OP12-A15-cabage-release/${{ env.zip_name }}
           tag_name: ${{ env.KSUVER }}-${{ env.ROOT_DIR_PREFIX }}
           name: Release ${{ env.ROOT_DIR_PREFIX }} ${{ env.zip_name }}
           body: |
