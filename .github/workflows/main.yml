@@ -164,7 +164,7 @@ jobs:
           echo "Attempting to navigate to common:"
           echo "BUILD_DIR: ${BUILD_DIR}"
           echo "KERNEL_DIR: ${KERNEL_DIR}"
-          cd "${BUILD_DIR}/${KERNEL_DIR}/common"  # ABSOLUTELY CORRECT NOW
+          cd "${BUILD_DIR}/${KERNEL_DIR}/kernel_platform/common"  # ABSOLUTELY CORRECT NOW
           pwd  # Print the working directory after the cd
           ls -la # list the files in the directory
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
