@@ -18,7 +18,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Important for submodules
+          fetch-depth: 1  # Important for submodules
           submodules: true
 
 
@@ -127,23 +127,29 @@ jobs:
             #exit 1
           #fi
 
-      - name: Setup SUSFS
-        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}
+      - name: Setup SUSFS in Kernel
         run: |
           set -euxo pipefail
-          ls -la 
-          ls -la kernel_platform
-          SUSFS_PATCHES="../../susfs4ksu/kernel_patches"
-          KERNEL_PATCHES="../../kernel_patches"
+
+          SUSFS_PATCHES="susfs4ksu/kernel_patches"
+          KERNEL_PATCHES="kernel_patches"
           KSU_NEXT="kernel_platform/KernelSU-Next"
 
+          # Clean up any previous attempts.  Force removal (-f) since it might be a directory now.
+          # Use --force and --recursive to handle directories, and suppress errors with || true
+          git rm -rf --cached "$KSU_NEXT" || true  
+
+          # Create the necessary directories, including within the checked-out repo.
+          mkdir -p "$KSU_NEXT"
           mkdir -p ./common/fs ./common/include/linux
+
+          # Use relative paths *within* the checked-out repositories.  This is crucial.
           cp "${SUSFS_PATCHES}/fs/"* ./common/fs/
           cp "${SUSFS_PATCHES}/include/linux/"* ./common/include/linux/
           cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
           cp "${SUSFS_PATCHES}/50_add_susfs_in_gki-android14-6.1.patch" ./common/
           cp "${KERNEL_PATCHES}/69_hide_stuff.patch" ./common/
-          cp "${KERNEL_PATCHES}/ksu-next_susfs-v1.5.5.patch" ./kernel_platform/KernelSU-Next/
+          cp "${KERNEL_PATCHES}/ksu-next_susfs-v1.5.5.patch" "${KSU_NEXT}/"
 
           cd "${KSU_NEXT}"
           patch -p1 --forward < ksu-next_susfs-v1.5.5.patch || echo "Warning: KernelSU SUSFS patch may have been already applied or failed."
@@ -151,12 +157,12 @@ jobs:
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || echo "Warning: SUSFS patch may have been already applied."
           patch -p1 -F 3 < 69_hide_stuff.patch || echo "Warning: 69_hide_stuff patch may have been already applied."
 
-          sed -i '/obj-$(CONFIG_KSU_SUSFS_SUS_SU) += sus_su.o/d' ./fs/Makefile
-          git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)" || true)
+          sed -i '/obj-\$\(CONFIG_KSU_SUSFS_SUS_SU\) += sus_su.o/d' ./fs/Makefile
+          git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)")
           cd ..
-          git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)" || true)
-          git rm --cached KernelSU-Next || true
+          git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)")
 
+        shell: bash
       - name: Configure Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
