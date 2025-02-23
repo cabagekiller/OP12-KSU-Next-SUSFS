@@ -104,12 +104,18 @@ jobs:
 
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
 
-      - name: Setup KernelSU (Submodule Integration)
+      - name: Check KernelSU-Next directory
+        run: |
+          set -euxo pipefail
+          cd kernel_platform/KernelSU-Next
+          ls -la
+
+      - name: Update Submodules
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
-          # Ensure submodules are updated (if necessary)
           git submodule update --init --recursive
+          git submodule status
     
           # Check if KernelSU-Next exists before proceeding
           if [ -d "KernelSU-Next/kernel" ]; then
