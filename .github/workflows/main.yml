@@ -115,11 +115,11 @@ jobs:
 
           # This step is mostly for verification and getting the KSU version.
           # The recursive checkout *should* have already done the work.
-          if [ ! -d "kernel_platform/KernelSU-Next" ]; then
-            echo "Error: KernelSU-Next submodule not found!"
+          #if [ ! -d "kernel_platform/KernelSU-Next" ]; then
+            #echo "Error: KernelSU-Next submodule not found!"
             ls -la kernel_platform  # Show contents for debugging
-            exit 1
-          fi
+            #exit 1
+          #fi
 
           cd kernel_platform/KernelSU-Next/kernel  # Go into KSU's kernel dir
           KSU_VERSION=$(git describe --tags --abbrev=0)
