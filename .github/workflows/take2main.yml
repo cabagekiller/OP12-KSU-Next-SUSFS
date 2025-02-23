@@ -133,7 +133,7 @@ jobs:
           set -euxo pipefail
           SUSFS_PATCHES="../../../susfs4ksu/kernel_patches"
           KERNEL_PATCHES="../../../kernel_patches"
-          KSU_NEXT="KernelSU-Next"
+          KSU_NEXT="kernel_platform/KernelSU-Next"
 
           mkdir -p ./common/fs ./common/include/linux
           cp "${SUSFS_PATCHES}/fs/"* ./common/fs/
