@@ -162,6 +162,7 @@ jobs:
           ls -la
           patch -p1 --forward < ksu-next_susfs-v1.5.5.patch || true
           cd ../
+          ls -la
           cd "${BUILD_DIR}/"
           pwd  # Print the working directory after the cd
           ls -la # list the files in the directory
