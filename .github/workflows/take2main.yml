@@ -157,7 +157,7 @@ jobs:
           patch -p1 --forward < ksu-next_susfs-v1.5.5.patch || echo "Warning: KernelSU SUSFS patch may have been already applied or failed."
 
           # Ensure the common directory exists before switching
-          cd ../../../../ || exit 1
+          cd ../../../ || exit 1
           ls
           cd ./common
 
