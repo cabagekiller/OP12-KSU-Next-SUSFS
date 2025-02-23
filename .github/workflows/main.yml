@@ -156,11 +156,13 @@ jobs:
           ls -la
           patch -p1 --forward < ksu-next_susfs-v1.5.5.patch || true
           cd ../../
+          pwd
           ls -la
           cd "${BUILD_DIR}/"
           pwd  # Print the working directory after the cd
           ls -la # list the files in the directory
           cd "${KERNEL_DIR}/"
+          pwd
           ls -la
           cp "${SUSFS_PATCHES}/fs/"* ./common/fs/
           cp "${SUSFS_PATCHES}/include/linux/"* ./common/include/linux/
