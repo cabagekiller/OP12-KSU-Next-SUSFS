@@ -210,7 +210,7 @@ jobs:
           sed -i '/check_defconfig/d' ./common/build.config.gki
 
       - name: Build Kernel
-        working-directory: /home/runner/work/OP12-KSU-Next-SUSFS/OP12-KSU-Next-SUSFS/builds/OP12-A15-cabage-release/kernel_platform/oneplus12_v/kernel_platform/kernel_platform # Inside your repo
+        working-directory: /home/runner/work/OP12-KSU-Next-SUSFS/OP12-KSU-Next-SUSFS/builds/OP12-A15-cabage-release/kernel_platform/oneplus12_v/kernel_platform # Inside your repo
         run: |
           set -euxo pipefail
           mkdir -p out
