@@ -76,7 +76,7 @@ jobs:
           set -euxo pipefail
           ROOT_DIR="${ROOT_DIR_PREFIX}-cabage-release"
           echo "ROOT_DIR=${ROOT_DIR}" >> $GITHUB_ENV
-          BUILD_DIR="builds/${ROOT_DIR}"
+          BUILD_DIR="${{ github.workspace }}/builds/${ROOT_DIR}"  # Absolute path
           echo "BUILD_DIR=${BUILD_DIR}" >> $GITHUB_ENV
           mkdir -p "${BUILD_DIR}"
           echo "Build directory set to ${BUILD_DIR}"
@@ -95,8 +95,8 @@ jobs:
           set -euxo pipefail
           KERNEL_DIR="kernel_platform/oneplus12_v"
           echo "KERNEL_DIR=${KERNEL_DIR}" >> $GITHUB_ENV
-          mkdir -p "${KERNEL_DIR}"
-          cd "${KERNEL_DIR}"
+          mkdir -p "${BUILD_DIR}/${KERNEL_DIR}" # Use absolute path
+          cd "${BUILD_DIR}/${KERNEL_DIR}" # Use absolute path
           repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus12_v.xml --depth=1
 
           sync_attempts=3
@@ -121,7 +121,6 @@ jobs:
 
           # *Copy* the submodule from its original location to the new location:
           cp -r ${{ github.workspace }}/kernel_platform/KernelSU-Next "$KSU_NEXT_DEST"
-
       - name: Remove original submodule
         working-directory: ${{ github.workspace }}
         run: |
@@ -133,40 +132,39 @@ jobs:
         run: |
           set -euxo pipefail
 
-          # Correct paths, relative to BUILD_DIR:
           SUSFS_PATCHES="${BUILD_DIR}/susfs4ksu/kernel_patches"
           KERNEL_PATCHES="${BUILD_DIR}/kernel_patches"
-          KSU_NEXT="${BUILD_DIR}/${KERNEL_DIR}/kernel_platform/KernelSU-Next"
+          KSU_NEXT="${BUILD_DIR}/${KERNEL_DIR}/kernel_platform/KernelSU-Next"  # Use new path
 
           # Copy the KernelSU-specific patches to the submodule:
-          #cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
+          cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
           cp "${KERNEL_PATCHES}/ksu-next_susfs-v1.5.5.patch" "${KSU_NEXT}/"
 
           # Patch KernelSU-Next (submodule):
           cd "${KSU_NEXT}"
           patch -p1 --forward < ksu-next_susfs-v1.5.5.patch || echo "Warning: KSU patch already applied"
-
-          # Get KSU version and update Makefile:
+          
+          # Get KSU version and update Makefile (now using the *new* path):
           cd kernel
-          KSU_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "Unknown")  # Handle potential errors
+          KSU_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "Unknown")
           echo "KSUVER=${KSU_VERSION}" >> $GITHUB_ENV
           sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" Makefile
           cd ../..
 
-          # Navigate to the downloaded kernel source's common directory:
-          cd "${BUILD_DIR}/${KERNEL_DIR}/kernel_platform"
+          # Navigate to the *downloaded* kernel source's common directory:
+          cd "${BUILD_DIR}/${KERNEL_DIR}/kernel_platform"  # CORRECT navigation
 
-          # Create directories, copy files, and apply patches:
+          # Create directories, copy files, and apply patches *within the downloaded kernel source*:
           mkdir -p common/fs common/include/linux
           cp "${SUSFS_PATCHES}/fs/"* common/fs/
           cp "${SUSFS_PATCHES}/include/linux/"* common/include/linux/
-          cp "${SUSFS_PATCHES}/50_add_susfs_in_gki-android14-6.1.patch" common/
-          cp "${KERNEL_PATCHES}/69_hide_stuff.patch" common/
+          cp "${SUSFS_PATCHES}/50_add_susfs_in_gki-android14-6.1.patch" common/  # Copy patches *into* common
+          cp "${KERNEL_PATCHES}/69_hide_stuff.patch" common/                    # Copy patches
 
           patch -p1 < common/50_add_susfs_in_gki-android14-6.1.patch || echo "Warning: SUSFS patch already applied"
           patch -p1 -F 3 < common/69_hide_stuff.patch || echo "Warning: 69_hide_stuff already applied"
 
-          # Modify the Makefile:
+          # Modify the Makefile (correct path):
           sed -i '/obj-\$\(CONFIG_KSU_SUSFS_SUS_SU\) += sus_su.o/d' common/fs/Makefile
         shell: bash
 
