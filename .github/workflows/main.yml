@@ -150,7 +150,7 @@ jobs:
 
           cd "${KSU_NEXT}"
           patch -p1 --forward < ksu-next_susfs-v1.5.5.patch || true
-          cd ../../../kernel_platform/common # Correct path back to the 'common' directory
+          cd "${KERNEL_DIR}"/kernel_platform/common
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
           patch -p1 -F 3 < 69_hide_stuff.patch || true
 
