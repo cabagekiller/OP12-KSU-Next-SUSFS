@@ -114,7 +114,7 @@ jobs:
           set -euxo pipefail
 
           # Define the *new* location for KernelSU-Next *inside* the kernel source:
-          KSU_NEXT_DEST="${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/KernelSU-Next"
+          KSU_NEXT_DEST="${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform"
 
           # Create the destination directory:
           mkdir -p "$KSU_NEXT_DEST"
