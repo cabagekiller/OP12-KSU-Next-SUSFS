@@ -145,7 +145,7 @@ jobs:
           patch -p1 --forward < ksu-next_susfs-v1.5.5.patch || echo "Warning: KSU patch already applied"
 
           # Check if the directory exists before moving to it
-          COMMON_DIR="${BUILD_DIR}/${KERNEL_DIR}/common"
+          COMMON_DIR="${BUILD_DIR}/${KERNEL_DIR}/kernel_platform/common"
           if [ ! -d "$COMMON_DIR" ]; then
             echo "Directory $COMMON_DIR does not exist. Creating it."
             mkdir -p "$COMMON_DIR"
@@ -156,8 +156,8 @@ jobs:
 
           # Copy SUSFS files *into* the downloaded kernel source:
           mkdir -p fs include/linux
-          cp "${SUSFS_PATCHES}/fs/"* fs/
-          cp "${SUSFS_PATCHES}/include/linux/"* include/linux/
+          cp "${SUSFS_PATCHES}/fs/*" fs/
+          cp "${SUSFS_PATCHES}/include/linux/*" include/linux/
 
           # Copy the two patches *into* the downloaded kernel source's common:
           cp "${SUSFS_PATCHES}/50_add_susfs_in_gki-android14-6.1.patch" .
