@@ -1,4 +1,4 @@
-name: Build and Release Kernel submodule testing
+name: Build and Release Kernel with Submodule
 
 on:
   pull_request:
@@ -18,27 +18,16 @@ jobs:
   build-release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout code (with Submodules)
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          submodules: 'recursive'
-
-      # --- DEBUGGING STEPS ---
-      - name: Check Initial Working Directory
-        run: |
-          pwd
-          ls -la
-
-      - name: List Files (Root) - Before submodule init
-        run: ls -la ${{ github.workspace }}
-
-      # --- END DEBUGGING ---
+          fetch-depth: 0  # For git describe
+          submodules: 'recursive'  # CORRECT: Handles nested submodules
 
       - name: Free Disk Space & Update APT
         run: |
           set -euxo pipefail
-          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/share/dotnet  # Free up space
           sudo apt-get update -qq && sudo apt-get install -qq curl
           curl -fsSL https://raw.githubusercontent.com/kou/arrow/e49d8ae15583ceff03237571569099a6ad62be32/ci/scripts/util_free_space.sh | bash
 
@@ -92,7 +81,7 @@ jobs:
           mkdir -p "${BUILD_DIR}"
           echo "Build directory set to ${BUILD_DIR}"
 
-      - name: Clone Required Repositories
+      - name: Clone Required Repositories (External)
         working-directory: ${{ env.BUILD_DIR }}
         run: |
           set -euxo pipefail
@@ -100,7 +89,7 @@ jobs:
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
           git clone https://github.com/cabagekiller/kernel_patches.git
 
-      - name: Setup Kernel Source
+      - name: Setup Kernel Source (Using repo)
         working-directory: ${{ env.BUILD_DIR }}
         run: |
           set -euxo pipefail
@@ -117,52 +106,38 @@ jobs:
               if [ $i -lt $sync_attempts ]; then sleep 60; fi
           done
           [ $? -eq 0 ] || { echo "Repo sync failed after multiple attempts."; exit 1; }
-
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
-          
-      - name: List Files (Kernel Dir) - Before submodule init
-        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}
-        run: ls -la
 
-      - name: Initialize and Update Submodules (Corrected)
-        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}  # CORRECT WORKING DIRECTORY
+      - name: Verify and Update Submodule (Simplified)
+        working-directory: ${{ github.workspace }} # Work in the *root* of your checked-out repo
         run: |
           set -euxo pipefail
 
-          # Check if the submodule directory exists *after* repo sync.
+          # This step is mostly for verification and getting the KSU version.
+          # The recursive checkout *should* have already done the work.
           if [ ! -d "kernel_platform/KernelSU-Next" ]; then
-            echo "Error: KernelSU-Next submodule not found after repo sync!"
-            # List files in the parent directory to help debug
-            echo "Contents of kernel_platform:"
-            ls -la kernel_platform
+            echo "Error: KernelSU-Next submodule not found!"
+            ls -la kernel_platform  # Show contents for debugging
             exit 1
           fi
 
-          # Update the submodule (should be redundant, but good for safety).
-          git submodule update --init --recursive
-          git submodule status
-
-          # Get KSU Version (using git describe, needs full history).
-          cd kernel_platform/KernelSU-Next/kernel  # Go into the KSU kernel directory
+          cd kernel_platform/KernelSU-Next/kernel  # Go into KSU's kernel dir
           KSU_VERSION=$(git describe --tags --abbrev=0)
           echo "KSUVER=${KSU_VERSION}" >> $GITHUB_ENV
           sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" Makefile
-          cd ../../.. # Go back to the main working directory
+          cd ../../  # Back to the root of your repository
 
-      - name: List Files (Kernel Dir) - After submodule init
-        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}
-        run: ls -la
 
       - name: Setup SUSFS in Kernel
-        working-directory: ${{ env.BUILD_DIR }}
+        working-directory: ${{ github.workspace }} # Work in the ROOT of your repo
         run: |
           set -euxo pipefail
 
-          SUSFS_PATCHES="${BUILD_DIR}/susfs4ksu/kernel_patches"
-          KERNEL_PATCHES="${BUILD_DIR}/kernel_patches"
-          KSU_NEXT="${KERNEL_DIR}/kernel_platform/KernelSU-Next"  # Correct path
+          SUSFS_PATCHES="${BUILD_DIR}/susfs4ksu/kernel_patches"  # Absolute paths
+          KERNEL_PATCHES="${BUILD_DIR}/kernel_patches"        # Absolute paths
+          KSU_NEXT="kernel_platform/KernelSU-Next"    # Now relative to github.workspace
 
-          git rm -rf --cached "$KSU_NEXT" || true
+          # No need to remove KSU_NEXT, as it's part of your repository.
 
           mkdir -p ./common/fs ./common/include/linux
 
@@ -175,18 +150,16 @@ jobs:
 
           cd "${KSU_NEXT}"
           patch -p1 --forward < ksu-next_susfs-v1.5.5.patch || echo "Warning: KernelSU SUSFS patch may have been already applied or failed."
-          cd ../../common
+          cd ../../common  # Go to common *within your repo*, relative to root
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || echo "Warning: SUSFS patch may have been already applied."
           patch -p1 -F 3 < 69_hide_stuff.patch || echo "Warning: 69_hide_stuff patch may have been already applied."
 
           sed -i '/obj-\$\(CONFIG_KSU_SUSFS_SUS_SU\) += sus_su.o/d' ./fs/Makefile
           git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)")
-          cd ../..  # Back to KERNEL_DIR
-
-        shell: bash
+          # No need to cd, we're already in the root
 
       - name: Configure Kernel
-        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        working-directory: ${{ github.workspace }}/kernel_platform  # Inside your repo
         run: |
           set -euxo pipefail
           cat >> ./common/arch/arm64/configs/gki_defconfig <<EOF
@@ -213,7 +186,7 @@ jobs:
           sed -i '/check_defconfig/d' ./common/build.config.gki
 
       - name: Build Kernel
-        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        working-directory: ${{ github.workspace }}/kernel_platform # Inside your repo
         run: |
           set -euxo pipefail
           mkdir -p out
@@ -238,7 +211,7 @@ jobs:
           ZIP_NAME="Cabage-OP12-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
           echo "Creating zip file $ZIP_NAME..."
 
-          cp ../${KERNEL_DIR}/kernel_platform/out/dist/Image . || { echo "Error copying Image file"; exit 1; }
+          cp ${{ github.workspace }}/kernel_platform/out/dist/Image . || { echo "Error copying Image file"; exit 1; }
           zip -r "../$ZIP_NAME" ./* || { echo "Error creating zip"; exit 1; }
           ls -lh "../$ZIP_NAME"
           echo "zip_name=$ZIP_NAME" >> $GITHUB_ENV
@@ -268,7 +241,7 @@ jobs:
         with:
           name: build-logs
           path: |
-            ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/out/*.log
-            ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/**/*.rej
+            ${{ github.workspace }}/kernel_platform/out/*.log
+            ${{ github.workspace }}/kernel_platform/**/*.rej
           retention-days: 5
           if-no-files-found: warn
