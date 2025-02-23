@@ -169,7 +169,9 @@ jobs:
           echo "Current directory inside KERNEL_DIR: $(pwd)"
           echo "Contents of $(pwd):"
           ls -la
-          cd ./common
+          cd ./kernel_platform
+          echo "Contents of $(pwd):"
+          ls -la
 
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || echo "Warning: SUSFS patch may have been already applied."
           patch -p1 -F 3 < 69_hide_stuff.patch || echo "Warning: 69_hide_stuff patch may have been already applied."
