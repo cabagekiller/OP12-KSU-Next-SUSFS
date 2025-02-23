@@ -128,7 +128,7 @@ jobs:
           set -euxo pipefail
           rm -rf kernel_platform/KernelSU-Next
 
-            - name: Setup SUSFS in Kernel
+      - name: Setup SUSFS in Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
