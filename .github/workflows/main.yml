@@ -1,6 +1,12 @@
 name: Build and Release Kernel submodule testing
 
 on:
+  pull_request:
+    branches:
+      - main
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 env:
@@ -15,13 +21,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history for proper submodule handling and git describe
-          submodules: 'recursive'  # Use 'recursive' for nested submodules
+          fetch-depth: 0
+          submodules: 'recursive'
+
+      # --- DEBUGGING STEPS ---
+      - name: Check Initial Working Directory
+        run: |
+          pwd
+          ls -la
+
+      - name: List Files (Root) - Before submodule init
+        run: ls -la ${{ github.workspace }}
+
+      # --- END DEBUGGING ---
 
       - name: Free Disk Space & Update APT
         run: |
           set -euxo pipefail
-          sudo rm -rf /usr/share/dotnet # Consistent way to free space
+          sudo rm -rf /usr/share/dotnet
           sudo apt-get update -qq && sudo apt-get install -qq curl
           curl -fsSL https://raw.githubusercontent.com/kou/arrow/e49d8ae15583ceff03237571569099a6ad62be32/ci/scripts/util_free_space.sh | bash
 
@@ -39,16 +56,16 @@ jobs:
           path: ~/.ccache
           key: ${{ runner.os }}-ccache-${{ hashFiles('**/CMakeLists.txt') }}
           restore-keys: |
-            ${{ runner.os }}-ccache-  # Restore from any previous cache
+            ${{ runner.os }}-ccache-
 
       - name: Install Latest Pahole
         run: |
           set -euxo pipefail
-          sudo apt-get remove --purge -y dwarves || true # dwarves might not be installed
+          sudo apt-get remove --purge -y dwarves || true
           sudo apt-get install -y git build-essential libdw-dev zlib1g-dev
           git clone --recurse-submodules https://git.kernel.org/pub/scm/devel/pahole/pahole.git
           cd pahole
-          cmake -B build .  # Use out-of-source build
+          cmake -B build .
           cmake --build build
           sudo cmake --install build
 
@@ -81,7 +98,7 @@ jobs:
           set -euxo pipefail
           git clone --recursive https://github.com/TheWildJames/AnyKernel3.git -b gki
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
-          git clone https://github.com/cabagekiller/kernel_patches.git  # Ensure this repo exists
+          git clone https://github.com/cabagekiller/kernel_patches.git
 
       - name: Setup Kernel Source
         working-directory: ${{ env.BUILD_DIR }}
@@ -102,46 +119,53 @@ jobs:
           [ $? -eq 0 ] || { echo "Repo sync failed after multiple attempts."; exit 1; }
 
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
+          
+      - name: List Files (Kernel Dir) - Before submodule init
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}
+        run: ls -la
 
       - name: Initialize and Update Submodules (Corrected)
-        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}  # CORRECT WORKING DIRECTORY
         run: |
           set -euxo pipefail
 
-          # The submodule should already exist if checked out recursively.
-          # This verifies it's initialized and at the correct commit.
+          # Check if the submodule directory exists *after* repo sync.
           if [ ! -d "kernel_platform/KernelSU-Next" ]; then
-            echo "Error: KernelSU-Next submodule not found!"
+            echo "Error: KernelSU-Next submodule not found after repo sync!"
+            # List files in the parent directory to help debug
+            echo "Contents of kernel_platform:"
+            ls -la kernel_platform
             exit 1
           fi
 
-          cd kernel_platform/KernelSU-Next
+          # Update the submodule (should be redundant, but good for safety).
           git submodule update --init --recursive
           git submodule status
 
-          # Get KSU Version (using git describe, needs full history)
-          cd kernel  # Navigate into the 'kernel' subdirectory
+          # Get KSU Version (using git describe, needs full history).
+          cd kernel_platform/KernelSU-Next/kernel  # Go into the KSU kernel directory
           KSU_VERSION=$(git describe --tags --abbrev=0)
           echo "KSUVER=${KSU_VERSION}" >> $GITHUB_ENV
           sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" Makefile
-          cd ../..  # Back to kernel_platform
+          cd ../../.. # Go back to the main working directory
+
+      - name: List Files (Kernel Dir) - After submodule init
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}
+        run: ls -la
 
       - name: Setup SUSFS in Kernel
-        working-directory: ${{ env.BUILD_DIR }}  # Important: Work in the build directory
+        working-directory: ${{ env.BUILD_DIR }}
         run: |
           set -euxo pipefail
 
-          SUSFS_PATCHES="${BUILD_DIR}/susfs4ksu/kernel_patches"  # Absolute paths
-          KERNEL_PATCHES="${BUILD_DIR}/kernel_patches"        # Absolute paths
-          KSU_NEXT="${KERNEL_DIR}/kernel_platform/KernelSU-Next"
+          SUSFS_PATCHES="${BUILD_DIR}/susfs4ksu/kernel_patches"
+          KERNEL_PATCHES="${BUILD_DIR}/kernel_patches"
+          KSU_NEXT="${KERNEL_DIR}/kernel_platform/KernelSU-Next"  # Correct path
 
-          # Clean up any previous attempts.  Force removal (-f).
           git rm -rf --cached "$KSU_NEXT" || true
 
-          # Create directories (KSU_NEXT is already created by submodule init)
           mkdir -p ./common/fs ./common/include/linux
 
-          # Copy files (using absolute paths for safety)
           cp "${SUSFS_PATCHES}/fs/"* ./common/fs/
           cp "${SUSFS_PATCHES}/include/linux/"* ./common/include/linux/
           cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
@@ -151,13 +175,13 @@ jobs:
 
           cd "${KSU_NEXT}"
           patch -p1 --forward < ksu-next_susfs-v1.5.5.patch || echo "Warning: KernelSU SUSFS patch may have been already applied or failed."
-          cd ../../common  # Go back to the 'common' directory *within the kernel source*
+          cd ../../common
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || echo "Warning: SUSFS patch may have been already applied."
           patch -p1 -F 3 < 69_hide_stuff.patch || echo "Warning: 69_hide_stuff patch may have been already applied."
 
           sed -i '/obj-\$\(CONFIG_KSU_SUSFS_SUS_SU\) += sus_su.o/d' ./fs/Makefile
           git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)")
-          cd ../.. # Back to KERNEL_DIR
+          cd ../..  # Back to KERNEL_DIR
 
         shell: bash
 
@@ -165,7 +189,6 @@ jobs:
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
-          # Add SUSFS configuration settings
           cat >> ./common/arch/arm64/configs/gki_defconfig <<EOF
           CONFIG_KSU=y
           CONFIG_KSU_SUSFS=y
@@ -187,9 +210,7 @@ jobs:
           CONFIG_TMPFS_XATTR=y
           EOF
 
-          # Remove defconfig check (safer way)
           sed -i '/check_defconfig/d' ./common/build.config.gki
-
 
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
@@ -197,7 +218,7 @@ jobs:
           set -euxo pipefail
           mkdir -p out
           start_time=$(date +%s)
-          export PATH="/usr/lib/ccache:$PATH"  # Use ccache
+          export PATH="/usr/lib/ccache:$PATH"
           ./build_with_bazel.py \
             -t pineapple gki \
             --jobs="$(nproc --all)" --verbose_failures --config=stamp \
@@ -212,12 +233,11 @@ jobs:
         working-directory: ${{ env.BUILD_DIR }}
         run: |
           set -euxo pipefail
-          cd AnyKernel3 || exit 1 # Change directory and exit if error
+          cd AnyKernel3 || exit 1
 
           ZIP_NAME="Cabage-OP12-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
           echo "Creating zip file $ZIP_NAME..."
 
-          # Copy Image file, fail if copy fails
           cp ../${KERNEL_DIR}/kernel_platform/out/dist/Image . || { echo "Error copying Image file"; exit 1; }
           zip -r "../$ZIP_NAME" ./* || { echo "Error creating zip"; exit 1; }
           ls -lh "../$ZIP_NAME"
@@ -244,11 +264,11 @@ jobs:
 
       - name: Upload Build Logs
         uses: actions/upload-artifact@v4
-        if: ${{ always() }}  # Always upload logs, even on success (for debugging)
+        if: ${{ always() }}
         with:
           name: build-logs
           path: |
             ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/out/*.log
-            ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/**/*.rej  # Corrected path
+            ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/**/*.rej
           retention-days: 5
-          if-no-files-found: warn # Warn instead of error if no logs
+          if-no-files-found: warn
