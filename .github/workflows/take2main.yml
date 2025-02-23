@@ -118,15 +118,15 @@ jobs:
           git submodule status
     
           # Check if KernelSU-Next exists before proceeding
-          if [ -d "KernelSU-Next/kernel" ]; then
+          #if [ -d "KernelSU-Next/kernel" ]; then
             cd KernelSU-Next/kernel
             KSU_VERSION=$(git describe --tags --abbrev=0)
             echo "KSUVER=${KSU_VERSION}" >> $GITHUB_ENV
             sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" Makefile
-          else
-            echo "Error: KernelSU-Next directory not found!"
-            exit 1
-          fi
+          #else
+            #echo "Error: KernelSU-Next directory not found!"
+            #exit 1
+          #fi
 
       - name: Setup SUSFS
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
