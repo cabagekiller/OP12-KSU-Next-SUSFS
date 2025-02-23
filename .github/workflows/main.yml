@@ -143,10 +143,6 @@ jobs:
 
           # No need to remove KSU_NEXT, as it's part of your repository.
 
-          mkdir -p ./common/fs ./common/include/linux
-
-          cp "${SUSFS_PATCHES}/fs/"* ./common/fs/
-          cp "${SUSFS_PATCHES}/include/linux/"* ./common/include/linux/
           cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
           cp "${SUSFS_PATCHES}/50_add_susfs_in_gki-android14-6.1.patch" ./common/
           cp "${KERNEL_PATCHES}/69_hide_stuff.patch" ./common/
@@ -161,13 +157,17 @@ jobs:
           pwd
           ls -la
           patch -p1 --forward < ksu-next_susfs-v1.5.5.patch || true
-          cd ../
+          cd ../../
           ls -la
           cd "${BUILD_DIR}/"
           pwd  # Print the working directory after the cd
           ls -la # list the files in the directory
-          cd "${KERNEL_DIR}"
+          cd "${KERNEL_DIR}/"
           ls -la
+          cp "${SUSFS_PATCHES}/fs/"* ./common/fs/
+          cp "${SUSFS_PATCHES}/include/linux/"* ./common/include/linux/
+          cp "${SUSFS_PATCHES}/50_add_susfs_in_gki-android14-6.1.patch" ./common/
+          cp "${KERNEL_PATCHES}/69_hide_stuff.patch" ./common/
           cd ./common
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
           patch -p1 -F 3 < 69_hide_stuff.patch || true
