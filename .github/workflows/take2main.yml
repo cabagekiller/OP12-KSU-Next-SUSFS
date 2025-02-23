@@ -130,7 +130,8 @@ jobs:
       - name: Setup SUSFS in Kernel
         run: |
           set -euxo pipefail
-
+          ls -l builds/OP12-A15-2025-02-23-05-55-AM-release/susfs4ksu/kernel_patches/
+          ls -l builds/OP12-A15-2025-02-23-05-55-AM-release/susfs4ksu/kernel_patches/fs/
           SUSFS_PATCHES="builds/OP12-A15-2025-02-23-05-55-AM-release/susfs4ksu/kernel_patches"
           KERNEL_PATCHES="builds/OP12-A15-2025-02-23-05-55-AM-release/kernel_patches"
           KSU_NEXT="kernel_platform/KernelSU-Next"
