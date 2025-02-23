@@ -18,8 +18,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1  # Important for submodules
-          submodules: true
+          fetch-depth: 0  # Important for submodules
+          submodules: 'recursive'
 
 
       - name: Free Disk Space & Update APT
