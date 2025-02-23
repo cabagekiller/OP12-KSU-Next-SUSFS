@@ -144,8 +144,15 @@ jobs:
           cd "${KSU_NEXT}"
           patch -p1 --forward < ksu-next_susfs-v1.5.5.patch || echo "Warning: KSU patch already applied"
 
+          # Check if the directory exists before moving to it
+          COMMON_DIR="${BUILD_DIR}/${KERNEL_DIR}/common"
+          if [ ! -d "$COMMON_DIR" ]; then
+            echo "Directory $COMMON_DIR does not exist. Creating it."
+            mkdir -p "$COMMON_DIR"
+          fi
+
           # Navigate to the *downloaded* kernel source's common directory:
-          cd "${BUILD_DIR}/${KERNEL_DIR}/common"  # Correct navigation
+          cd "$COMMON_DIR"
 
           # Copy SUSFS files *into* the downloaded kernel source:
           mkdir -p fs include/linux
