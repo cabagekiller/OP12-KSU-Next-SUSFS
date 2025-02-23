@@ -81,7 +81,7 @@ jobs:
           set -euxo pipefail
           git clone --recursive https://github.com/TheWildJames/AnyKernel3.git -b "$BRANCH"
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
-          git clone https://github.com/WildPlusKernel/kernel_patches.git
+          git clone https://github.com/cabagekiller/kernel_patches.git
 
       - name: Setup Kernel Source
         working-directory: ${{ env.BUILD_DIR }}
@@ -132,6 +132,7 @@ jobs:
         run: |
           set -euxo pipefail
           ls -la 
+          ls -la kernel_platform
           SUSFS_PATCHES="../../susfs4ksu/kernel_patches"
           KERNEL_PATCHES="../../kernel_patches"
           KSU_NEXT="kernel_platform/KernelSU-Next"
@@ -142,10 +143,10 @@ jobs:
           cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
           cp "${SUSFS_PATCHES}/50_add_susfs_in_gki-android14-6.1.patch" ./common/
           cp "${KERNEL_PATCHES}/69_hide_stuff.patch" ./common/
-          cp "${KERNEL_PATCHES}/${KSU_NEXT}-Implement-SUSFS-v1.5.5-Universal.patch" "${KSU_NEXT}/"
+          cp "${KERNEL_PATCHES}/ksu-next_susfs-v1.5.5.patch" ./kernel_platform/KernelSU-Next/
 
           cd "${KSU_NEXT}"
-          patch -p1 --forward < "${KSU_NEXT}-Implement-SUSFS-v1.5.5-Universal.patch" || echo "Warning: KernelSU SUSFS patch may have been already applied or failed."
+          patch -p1 --forward < ksu-next_susfs-v1.5.5.patch || echo "Warning: KernelSU SUSFS patch may have been already applied or failed."
           cd ../common
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || echo "Warning: SUSFS patch may have been already applied."
           patch -p1 -F 3 < 69_hide_stuff.patch || echo "Warning: 69_hide_stuff patch may have been already applied."
