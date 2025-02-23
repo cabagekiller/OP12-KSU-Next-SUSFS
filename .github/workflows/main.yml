@@ -17,6 +17,8 @@ env:
 jobs:
   build-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout code (with Submodules)
         uses: actions/checkout@v4
