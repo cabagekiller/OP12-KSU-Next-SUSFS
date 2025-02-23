@@ -1,0 +1,3 @@
+[submodule "kernel_platform/KernelSU-Next"]
+	path = kernel_platform/KernelSU-Next
+	url = https://github.com/rifsxd/KernelSU-Next.git
