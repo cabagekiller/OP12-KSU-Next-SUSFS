@@ -74,7 +74,7 @@ jobs:
         id: build_dir
         run: |
           set -euxo pipefail
-          ROOT_DIR="${ROOT_DIR_PREFIX}-$(cabage)-release"
+          ROOT_DIR="${ROOT_DIR_PREFIX}-cabage-release"
           echo "ROOT_DIR=${ROOT_DIR}" >> $GITHUB_ENV
           BUILD_DIR="builds/${ROOT_DIR}"
           echo "BUILD_DIR=${BUILD_DIR}" >> $GITHUB_ENV
