@@ -133,8 +133,8 @@ jobs:
         run: |
           set -euxo pipefail
 
-          SUSFS_PATCHES="${{ env.BUILD_DIR }}/susfs4ksu/kernel_patches"  # Absolute paths
-          KERNEL_PATCHES="${{ env.BUILD_DIR }}/kernel_patches"        # Absolute paths
+          SUSFS_PATCHES=/home/runner/work/OP12-KSU-Next-SUSFS/OP12-KSU-Next-SUSFS/builds/OP12-A15-cabage-release/susfs4ksu/kernel_patches  # Absolute paths
+          KERNEL_PATCHES=/home/runner/work/OP12-KSU-Next-SUSFS/OP12-KSU-Next-SUSFS/builds/OP12-A15-cabage-release/kernel_patches        # Absolute paths
           KSU_NEXT="kernel_platform/KernelSU-Next"    # Now relative to github.workspace
 
           echo "Workspace root:"
