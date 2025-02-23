@@ -1,4 +1,4 @@
-name: Build and Release Kernel with Submodule Testing
+name: Build and Release Kernel with Submodule
 
 on:
   pull_request:
@@ -122,19 +122,12 @@ jobs:
           # *Copy* the submodule from its original location to the new location:
           cp -r ${{ github.workspace }}/kernel_platform/KernelSU-Next "$KSU_NEXT_DEST"
 
-          # Get KSU version and update Makefile (now using the *new* path):
-          cd "$KSU_NEXT_DEST/kernel"
-          KSU_VERSION=$(git describe --tags --abbrev=0)
-          echo "KSUVER=${KSU_VERSION}" >> $GITHUB_ENV
-          sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" Makefile
-          cd ../..
-
       - name: Remove original submodule
         working-directory: ${{ github.workspace }}
         run: |
           set -euxo pipefail
           rm -rf kernel_platform/KernelSU-Next
-      
+
       - name: Setup SUSFS in Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
@@ -142,7 +135,7 @@ jobs:
 
           SUSFS_PATCHES="${BUILD_DIR}/susfs4ksu/kernel_patches"
           KERNEL_PATCHES="${BUILD_DIR}/kernel_patches"
-          KSU_NEXT="${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/KernelSU-Next" # Use new path
+          KSU_NEXT="${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/KernelSU-Next"  # Use new path
 
           # Copy the KernelSU-specific patches to the submodule:
           cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
@@ -151,6 +144,13 @@ jobs:
           # Patch KernelSU-Next (submodule):
           cd "${KSU_NEXT}"
           patch -p1 --forward < ksu-next_susfs-v1.5.5.patch || echo "Warning: KSU patch already applied"
+          
+          # Get KSU version and update Makefile (now using the *new* path):
+          cd kernel
+          KSU_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "Unknown")
+          echo "KSUVER=${KSU_VERSION}" >> $GITHUB_ENV
+          sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" Makefile
+          cd ../..
 
           # Navigate to the *downloaded* kernel source's common directory:
           cd "${BUILD_DIR}/${KERNEL_DIR}/kernel_platform"  # CORRECT navigation
