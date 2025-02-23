@@ -165,7 +165,7 @@ jobs:
           echo "Contents of $(pwd):"
           ls -la
           
-          cd "${BUILD_DIR}${KERNEL_DIR}"
+          cd "${BUILD_DIR}/${KERNEL_DIR}"
           echo "Current directory inside KERNEL_DIR: $(pwd)"
           echo "Contents of $(pwd):"
           ls -la
