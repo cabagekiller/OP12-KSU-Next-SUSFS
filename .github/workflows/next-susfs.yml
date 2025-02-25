@@ -191,7 +191,7 @@ jobs:
         run: |
            set -euxo pipefail
            # Add SUSFS configuration settings:
-           cat >> ./common/arch/arm64/configs/gki_defconfig <<EOF
+           cat >> ./msm-kernel/arch/arm64/configs/gki_defconfig <<EOF
            CONFIG_KSU=y
            CONFIG_KSU_SUSFS=y
            CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
@@ -214,10 +214,10 @@ jobs:
 
            # --- VERIFICATION STEP ---
            # Check if the CONFIG_KSU_SUSFS option was added.  Use grep.
-           if ! grep -q "CONFIG_KSU_SUSFS=y" ./common/arch/arm64/configs/gki_defconfig; then
+           if ! grep -q "CONFIG_KSU_SUSFS=y" ./msm-kernel/arch/arm64/configs/gki_defconfig; then
              echo "ERROR: CONFIG_KSU_SUSFS=y not found in gki_defconfig!"
              echo "Contents of gki_defconfig:"
-             cat ./common/arch/arm64/configs/gki_defconfig  # Print the whole file for debugging
+             cat ./msm-kernel/arch/arm64/configs/gki_defconfig  # Print the whole file for debugging
              exit 1  # Fail the workflow
            fi
            # --- END VERIFICATION ---
