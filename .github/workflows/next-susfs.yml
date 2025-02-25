@@ -212,7 +212,7 @@ jobs:
            CONFIG_TMPFS_XATTR=y
            EOF
 
-            cat >> ./common/arch/arm64/configs/vendor/pineapple_GKI.config <<EOF
+            cat >> ./msm-kernel/arch/arm64/configs/vendor/pineapple_GKI.config <<EOF
            CONFIG_KSU=y
            CONFIG_KSU_SUSFS=y
            CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
