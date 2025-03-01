@@ -244,6 +244,7 @@ jobs:
              "CONFIG_IP6_NF_TARGET_HL=y"
              "CONFIG_IP6_NF_MATCH_HL=y"
            )
+           set +u  # Temporarily disable set -u
            for key in "${CONFIG_KEYS[@]}"; do
              if ! grep -q "$key" arch/arm64/configs/gki_defconfig; then
                echo "ERROR: $key not found in gki_defconfig!"
@@ -251,6 +252,7 @@ jobs:
                exit 1
              fi
            done
+           set -u  # Re-enable set -u
            echo "All required kernel configurations found."
            # --- END ROBUST CONFIGURATION VERIFICATION ---
            sed -i '/check_defconfig/d' build.config.gki
