@@ -114,7 +114,7 @@ jobs:
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common
         run: |
           set -euxo pipefail
-          # Corrected relative paths:
+          # CORRECTED paths - relative to the BUILD_DIR
           SUSFS_PATCHES="${{ env.BUILD_DIR }}/susfs4ksu/kernel_patches"
           KERNEL_PATCHES="${{ env.BUILD_DIR }}/kernel_patches"
 
@@ -174,7 +174,7 @@ jobs:
           if ! grep -q "obj-$(CONFIG_KSU_SUSFS) += susfs.o" fs/Makefile; then
             echo "ERROR: susfs.o not added to fs/Makefile!"
             echo "Contents of fs/Makefile:"
-            cat fs/Makefile  # Corrected typo: Makefile, not Makef
+            cat fs/Makefile
             exit 1
           fi
           echo "fs/Makefile modification successful."
