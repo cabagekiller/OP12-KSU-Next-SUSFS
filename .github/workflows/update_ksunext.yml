@@ -16,7 +16,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.WORKFLOW_TOKEN }}  # Personal access token with repo scope
+          token: ${{ secrets.GITHUB_TOKEN }}  # Personal access token with repo scope
           fetch-depth: 0
 
       - name: Configure Git
