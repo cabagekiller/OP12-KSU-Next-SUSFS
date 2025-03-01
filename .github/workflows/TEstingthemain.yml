@@ -110,10 +110,11 @@ jobs:
            echo "Contents of fs/Makefile before modifications:"
            cat fs/Makefile > fs_Makefile_before.txt
 
-      - name: Setup SUSFS in Kernel (with Detailed Checks)
+      - name: Setup SUSFS in Kernel (with Detailed Checks and Makefile Modification)
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common
         run: |
           set -euxo pipefail
+          # Corrected relative paths:
           SUSFS_PATCHES="${{ env.BUILD_DIR }}/susfs4ksu/kernel_patches"
           KERNEL_PATCHES="${{ env.BUILD_DIR }}/kernel_patches"
 
@@ -134,7 +135,7 @@ jobs:
             echo "Changes detected after applying 50_add_susfs_in_gki-android14-6.1.patch (GOOD)"
           else
             echo "ERROR: No changes detected after applying 50_add_susfs_in_gki-android14-6.1.patch!"
-            exit 1
+            exit 1  #  Important: Fail here if the patch does nothing.
           fi
 
           # 69_hide_stuff.patch
@@ -162,21 +163,22 @@ jobs:
           fi
           # --- END DETAILED PATCH APPLICATION AND VERIFICATION ---
 
-           # --- ADD Makefile MODIFICATION (CRUCIAL!) ---
+          # --- ADD Makefile MODIFICATION (CRUCIAL!) ---
           echo "Adding susfs.o to fs/Makefile..."
           echo "obj-$(CONFIG_KSU_SUSFS) += susfs.o" >> fs/Makefile
           # --- END Makefile MODIFICATION ---
+
 
           # --- VERIFY Makefile MODIFICATION ---
           echo "Verifying fs/Makefile..."
           if ! grep -q "obj-$(CONFIG_KSU_SUSFS) += susfs.o" fs/Makefile; then
             echo "ERROR: susfs.o not added to fs/Makefile!"
             echo "Contents of fs/Makefile:"
-            cat fs/Makef
+            cat fs/Makefile  # Corrected typo: Makefile, not Makef
             exit 1
           fi
           echo "fs/Makefile modification successful."
-          # --- END Makefile VERIFICATION ---
+          # --- END Makefile MODIFICATION ---
       - name: Inspect fs/Makefile After
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common
         run: |
