@@ -156,7 +156,7 @@ jobs:
           echo "Inside KSU-Next:"
           pwd
           ls -la
-          patch -p1 --forward < ksu-next_susfs-v1.5.5.patch || true
+          #patch -p1 --forward < ksu-next_susfs-v1.5.5.patch || true
           cd ../../
           pwd
           ls -la
@@ -169,18 +169,21 @@ jobs:
           cd ./kernel_platform
           pwd
           ls -la
-          cp "${SUSFS_PATCHES}/fs/sus_su.c" ./common/fs/
+          #cp "${SUSFS_PATCHES}/fs/sus_su.c" ./common/fs/
           cp "${SUSFS_PATCHES}/fs/susfs.c" ./common/fs/
-          cp "${SUSFS_PATCHES}/include/linux/sus_su.h" ./common/include/linux/
+          #cp "${SUSFS_PATCHES}/include/linux/sus_su.h" ./common/include/linux/
           cp "${SUSFS_PATCHES}/include/linux/susfs.h" ./common/include/linux/
           cp "${SUSFS_PATCHES}/include/linux/susfs_def.h" ./common/include/linux/
           cp "${SUSFS_PATCHES}/50_add_susfs_in_gki-android14-6.1.patch" ./common/
           cp "${KERNEL_PATCHES}/69_hide_stuff.patch" ./common/
+          cp "${KERNEL_PATCHES}/new_hooks.patch" ./common/
+          
           cd ./common
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
           patch -p1 -F 3 < 69_hide_stuff.patch || true
+          patch -p1 --forward < new_hooks.patch || true
 
-          sed -i '/obj-\$\(CONFIG_KSU_SUSFS_SUS_SU\) += sus_su.o/d' /home/runner/work/OP12-KSU-Next-SUSFS/OP12-KSU-Next-SUSFS/builds/OP12-A15-cabage-release/kernel_platform/oneplus12_v/kernel_platform/common/fs/Makefile
+          #sed -i '/obj-\$\(CONFIG_KSU_SUSFS_SUS_SU\) += sus_su.o/d' /home/runner/work/OP12-KSU-Next-SUSFS/OP12-KSU-Next-SUSFS/builds/OP12-A15-cabage-release/kernel_platform/oneplus12_v/kernel_platform/common/fs/Makefile
           git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)")
           # No need to cd, we're already in the root
 
@@ -205,7 +208,9 @@ jobs:
           CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
           CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
-          CONFIG_KSU_SUSFS_SUS_SU=y
+          CONFIG_KSU_SUSFS_SUS_SU=n
+          CONFIG_KSU_WITH_KPROBES=n
+          CONFIG_COMPAT=y
           CONFIG_TMPFS_XATTR=y
           EOF
 
