@@ -1,0 +1,59 @@
+name: Update Submodules
+
+on:
+  schedule:
+    # Run every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.WORKFLOW_TOKEN }}  # Personal access token with repo scope
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.name 'GitHub Actions Bot'
+          git config --global user.email 'actions@github.com'
+
+      - name: Update submodule
+        run: |
+          # Initialize and update submodule
+          git submodule init
+          git submodule update
+          
+          # Go to submodule directory
+          cd kernel_platform/KernelSU-Next
+          
+          # Fetch and checkout the next branch
+          git fetch origin next
+          git checkout next
+          git pull origin next
+          
+          # Return to parent repository
+          cd ../..
+
+      - name: Check for changes
+        id: check_changes
+        run: |
+          git status
+          if [[ -n $(git status -s) ]]; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push if there are changes
+        if: steps.check_changes.outputs.changes == 'true'
+        run: |
+          git add .
+          git commit -m "Auto-update KernelSU-Next submodule to latest next branch"
+          git push origin HEAD:latest
