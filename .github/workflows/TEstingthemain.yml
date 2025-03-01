@@ -165,12 +165,12 @@ jobs:
 
           # --- ADD Makefile MODIFICATION (CRUCIAL!) ---
           echo "Adding susfs.o to fs/Makefile..."
-          echo "obj-$(CONFIG_KSU_SUSFS) += susfs.o" >> fs/Makefile
+          echo 'obj-$(CONFIG_KSU_SUSFS) += susfs.o' >> fs/Makefile
           # --- END Makefile MODIFICATION ---
 
           # --- VERIFY Makefile MODIFICATION ---
           echo "Verifying fs/Makefile..."
-          if ! grep -q "obj-$(CONFIG_KSU_SUSFS) += susfs.o" fs/Makefile; then
+          if ! grep -q echo 'obj-$(CONFIG_KSU_SUSFS) += susfs.o' >> fs/Makefile; then
             echo "ERROR: susfs.o not added to fs/Makefile!"
             echo "Contents of fs/Makefile:"
             cat fs/Makefile
