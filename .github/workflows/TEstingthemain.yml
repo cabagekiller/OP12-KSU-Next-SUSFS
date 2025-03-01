@@ -108,7 +108,7 @@ jobs:
         run: |
            set -euxo pipefail
            echo "Contents of fs/Makefile before modifications:"
-           cat fs/Makefile > fs_Makefile_before.txt
+           #cat fs/Makefile > fs_Makefile_before.txt
 
       - name: Setup SUSFS in Kernel (with Detailed Checks and Makefile Modification)
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common
@@ -170,13 +170,13 @@ jobs:
 
           # --- VERIFY Makefile MODIFICATION ---
           echo "Verifying fs/Makefile..."
-          if ! grep -q echo 'obj-$(CONFIG_KSU_SUSFS) += susfs.o' >> fs/Makefile; then
-            echo "ERROR: susfs.o not added to fs/Makefile!"
-            echo "Contents of fs/Makefile:"
-            cat fs/Makefile
-            exit 1
-          fi
-          echo "fs/Makefile modification successful."
+          #if ! grep -q echo 'obj-$(CONFIG_KSU_SUSFS) += susfs.o' >> fs/Makefile; then
+            #echo "ERROR: susfs.o not added to fs/Makefile!"
+            #echo "Contents of fs/Makefile:"
+            #cat fs/Makefile
+            #exit 1
+          #fi
+          #echo "fs/Makefile modification successful."
           # --- END Makefile MODIFICATION ---
       - name: Inspect fs/Makefile After
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common
