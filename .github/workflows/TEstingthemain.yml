@@ -216,7 +216,7 @@ jobs:
             CONFIG_IP_NF_TARGET_TTL=y
             CONFIG_IP6_NF_TARGET_HL=y
             CONFIG_IP6_NF_MATCH_HL=y
-            EOF
+           EOF
 
            # --- ROBUST CONFIGURATION VERIFICATION ---
            CONFIG_KEYS=(
