@@ -118,6 +118,8 @@ jobs:
           git fetch origin
           git checkout next-susfs
           git pull origin next-susfs
+          pwd
+          ls -la
           cd ../../  # Back to the root of the repository
           KSU_VERSION=$(cd kernel_platform/oneplus12_v/kernel_platform/kernel && git describe --tags --abbrev=0)
           echo "KSUVER=${KSU_VERSION}" >> $GITHUB_ENV
