@@ -110,25 +110,6 @@ jobs:
           [ $? -eq 0 ] || { echo "Repo sync failed after multiple attempts."; exit 1; }
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
 
-      - name: Verify and Update Submodule (Simplified)
-        working-directory: ${{ github.workspace }} # Work in the *root* of your checked-out repo
-        run: |
-          set -euxo pipefail
-
-          # This step is mostly for verification and getting the KSU version.
-          # The recursive checkout *should* have already done the work.
-          #if [ ! -d "kernel_platform/KernelSU-Next" ]; then
-            #echo "Error: KernelSU-Next submodule not found!"
-            ls -la kernel_platform  # Show contents for debugging
-            #exit 1
-          #fi
-
-          cd kernel_platform/KernelSU-Next/kernel  # Go into KSU's kernel dir
-          KSU_VERSION=$(git describe --tags --abbrev=0)
-          echo "KSUVER=${KSU_VERSION}" >> $GITHUB_ENV
-          sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" Makefile
-          cd ../../  # Back to the root of your repository
-
       - name: Update Submodule to Latest on 'next-susfs'
         working-directory: ${{ github.workspace }}
         run: |
@@ -216,7 +197,7 @@ jobs:
            echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
            echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
            echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./common/arch/arm64/configs/gki_defconfig
-           echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./common/arch/arm64/configs/gki_defconfig
+           echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y" >> ./common/arch/arm64/configs/gki_defconfig
            echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
            echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
            echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -239,7 +220,7 @@ jobs:
            if ! grep -q "CONFIG_KSU_SUSFS=y" ./common/arch/arm64/configs/gki_defconfig; then
              echo "ERROR: CONFIG_KSU_SUSFS=y not found in gki_defconfig!"
              echo "Contents of gki_defconfig:"
-             cat ./msm-kernel/arch/arm64/configs/gki_defconfig  # Print the whole file for debugging
+             cat ./common/arch/arm64/configs/gki_defconfig  # Print the whole file for debugging
              exit 1  # Fail the workflow
            fi
            # --- END VERIFICATION ---
