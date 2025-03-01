@@ -114,14 +114,14 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           set -euxo pipefail
-          cd kernel_platform/oneplus12_v/kernel_platform/KernelSU-Next
+          cd kernel_platform/oneplus12_v/kernel_platform/
           git fetch origin
           git checkout next-susfs
           git pull origin next-susfs
           cd ../../  # Back to the root of the repository
-          KSU_VERSION=$(cd kernel_platform/KernelSU-Next/kernel && git describe --tags --abbrev=0)
+          KSU_VERSION=$(cd kernel_platform/oneplus12_v/kernel_platform/kernel && git describe --tags --abbrev=0)
           echo "KSUVER=${KSU_VERSION}" >> $GITHUB_ENV
-          git add kernel_platform/KernelSU-Next # Stage submodule update
+          git add kernel_platform/oneplus12_v/kernel_platform/ # Stage submodule update
           git commit -m "Update KernelSU-Next submodule to latest on next-susfs" # Commit submodule update
           # NO PUSH HERE - let the action handle pushing at the end if needed
 
@@ -133,7 +133,7 @@ jobs:
 
           SUSFS_PATCHES=/home/runner/work/OP12-KSU-Next-SUSFS/OP12-KSU-Next-SUSFS/builds/OP12-A15-cabage-release/susfs4ksu/kernel_patches  # Absolute paths
           KERNEL_PATCHES=/home/runner/work/OP12-KSU-Next-SUSFS/OP12-KSU-Next-SUSFS/builds/OP12-A15-cabage-release/kernel_patches        # Absolute paths
-          KSU_NEXT="kernel_platform/oneplus12_v/kernel_platform/KernelSU-Next"    # Now relative to github.workspace
+          KSU_NEXT="kernel_platform/oneplus12_v/kernel_platform/"    # Now relative to github.workspace
 
           echo "Workspace root:"
           pwd
