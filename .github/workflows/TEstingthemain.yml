@@ -115,8 +115,8 @@ jobs:
         run: |
           set -euxo pipefail
           # CORRECTED paths - using explicit relative paths
-          SUSFS_PATCHES="../../../susfs4ksu/kernel_patches"
-          KERNEL_PATCHES="../../../kernel_patches"
+          SUSFS_PATCHES="../../../../susfs4ksu/kernel_patches"
+          KERNEL_PATCHES="../../../../kernel_patches"
 
           cp "${SUSFS_PATCHES}/fs/susfs.c" ./fs/
           cp "${SUSFS_PATCHES}/include/linux/susfs.h" ./include/linux/
