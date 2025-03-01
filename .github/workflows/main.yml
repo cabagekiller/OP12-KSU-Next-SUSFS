@@ -124,9 +124,9 @@ jobs:
           KSU_NEXT="kernel_platform/KernelSU-Next"    # Now relative to github.workspace
           # No need to remove KSU_NEXT, as it's part of your repository.
           cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
-          #cp "${KERNEL_PATCHES}/ksu-next_susfs-v1.5.5.patch" "${KSU_NEXT}/"
+          cp "${KERNEL_PATCHES}/0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch" "${KSU_NEXT}/"
           cd "${KSU_NEXT}"
-          #patch -p1 --forward < ksu-next_susfs-v1.5.5.patch || true
+          patch -p1 --forward < 0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch || true
           cd ../../
           cd "${BUILD_DIR}/"
           pwd  # Print the working directory after the cd
