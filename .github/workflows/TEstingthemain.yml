@@ -192,7 +192,7 @@ jobs:
         run: |
            set -euxo pipefail
            # Add SUSFS configuration settings (heredoc)
-           cat >> arch/arm64/configs/gki_defconfig << EOF
+           cat >> arch/arm64/configs/gki_defconfig <<EOF
             CONFIG_KSU=y
             CONFIG_KSU_SUSFS=y
             CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
