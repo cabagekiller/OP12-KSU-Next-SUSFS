@@ -1,4 +1,4 @@
-name: Test Build and Release Kernel with Submodule
+name: Build and Release Kernel with Submodule
 
 on:
   pull_request:
@@ -23,7 +23,7 @@ jobs:
       - name: Checkout code (with Submodules)
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # For git describe
+          fetch-depth: 0
           submodules: 'recursive'
 
       - name: Free Disk Space & Update APT
@@ -103,16 +103,6 @@ jobs:
           repo sync -c -j"$(nproc)" --force-sync --no-clone-bundle --no-tags || { echo "Repo sync failed."; exit 1; }
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
 
-      - name: Update KernelSU Submodule
-        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
-        run: |
-          set -euxo pipefail
-          git fetch origin
-          git checkout next-susfs
-          git pull origin next-susfs
-          KSU_VERSION=$(cd kernel && git describe --tags --abbrev=0)
-          echo "KSUVER=${KSU_VERSION}" >> "$GITHUB_ENV"
-
       - name: Inspect fs/Makefile Before
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common
         run: |
@@ -137,9 +127,9 @@ jobs:
           # --- DETAILED PATCH APPLICATION AND VERIFICATION ---
           # 50_add_susfs_in_gki-android14-6.1.patch
           echo "Applying 50_add_susfs_in_gki-android14-6.1.patch..."
-          patch -p1 -v --dry-run < 50_add_susfs_in_gki-android14-6.1.patch  # Verbose dry-run
+          patch -p1 -v --dry-run < 50_add_susfs_in_gki-android14-6.1.patch
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || (echo "Patch 50 failed to apply"; exit 1)
-          git diff --exit-code  # Check for changes.  If no changes, the patch did nothing.
+          git diff --exit-code
           if [ $? -ne 0 ]; then
             echo "Changes detected after applying 50_add_susfs_in_gki-android14-6.1.patch (GOOD)"
           else
@@ -172,12 +162,17 @@ jobs:
           fi
           # --- END DETAILED PATCH APPLICATION AND VERIFICATION ---
 
+           # --- ADD Makefile MODIFICATION (CRUCIAL!) ---
+          echo "Adding susfs.o to fs/Makefile..."
+          echo "obj-$(CONFIG_KSU_SUSFS) += susfs.o" >> fs/Makefile
+          # --- END Makefile MODIFICATION ---
+
           # --- VERIFY Makefile MODIFICATION ---
           echo "Verifying fs/Makefile..."
           if ! grep -q "obj-$(CONFIG_KSU_SUSFS) += susfs.o" fs/Makefile; then
             echo "ERROR: susfs.o not added to fs/Makefile!"
             echo "Contents of fs/Makefile:"
-            cat fs/Makefile
+            cat fs/Makef
             exit 1
           fi
           echo "fs/Makefile modification successful."
@@ -195,7 +190,7 @@ jobs:
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common
         run: |
            set -euxo pipefail
-           # Add SUSFS configuration settings to gki_defconfig (using heredoc)
+           # Add SUSFS configuration settings (heredoc)
            cat >> arch/arm64/configs/gki_defconfig << EOF
             CONFIG_KSU=y
             CONFIG_KSU_SUSFS=y
@@ -280,8 +275,8 @@ jobs:
         run: |
           set -euxo pipefail
           echo "Listing contents of out/ directory:"
-          find out/ -type f  # List all files
-          # find out/ -name "susfs*" # Example: List files starting with "susfs"
+          find out/ -type f
+          # find out/ -name "susfs*"
 
       - name: Create ZIP Package
         working-directory: ${{ env.BUILD_DIR }}
