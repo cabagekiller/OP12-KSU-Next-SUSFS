@@ -1,4 +1,4 @@
-name: Update Submodules
+name: Update KernelSU-Next Submodule
 
 on:
   schedule:
@@ -18,6 +18,12 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+          ref: latest  # Specifically checkout the latest branch
+
+      - name: Fetch all branches
+        run: |
+          git fetch --all --prune
+          git status
 
       - name: Configure Git
         run: |
@@ -28,50 +34,59 @@ jobs:
         run: |
           # Initialize submodule
           git submodule init
-          git submodule update
+          git submodule update --init --recursive
           
           # Go to submodule directory
           cd kernel_platform/KernelSU-Next
           
-          # Add verbose output for debugging
-          echo "Remote repositories:"
-          git remote -v
+          # Log current state before update
+          echo "Current submodule state before update:"
+          git rev-parse HEAD
           
-          # Force fetch the very latest from remote
+          # Force fetch the latest from remote
           git fetch --force --prune origin
-          
-          # Display all branches to confirm what we're seeing
-          echo "Available branches:"
-          git branch -a
           
           # Hard reset to origin/next to force getting the latest
           git checkout -B next --track origin/next
           git reset --hard origin/next
           
           # Verify we have the latest commit
-          echo "Current commit:"
+          echo "Updated submodule to:"
           git rev-parse HEAD
-          git log -1 --pretty=format:"%h %s"
+          git log -1 --oneline
           
           # Return to parent repository
           cd ../..
           
-          echo "Submodule status:"
+          # Show submodule status
           git submodule status
 
       - name: Check for changes
         id: check_changes
         run: |
           git status
-          if [[ -n $(git status -s) ]]; then
+          if [[ -n $(git status -s | grep "kernel_platform/KernelSU-Next") ]]; then
             echo "changes=true" >> $GITHUB_OUTPUT
+            echo "Found submodule changes to commit"
           else
             echo "changes=false" >> $GITHUB_OUTPUT
+            echo "No submodule changes detected"
           fi
 
-      - name: Commit and push if there are changes
+      - name: Commit and push submodule update
         if: steps.check_changes.outputs.changes == 'true'
         run: |
-          git add .
-          git commit -m "Auto-update KernelSU-Next submodule to latest next branch"
-          git push origin HEAD:latest
+          # Only stage the submodule changes
+          git add kernel_platform/KernelSU-Next
+          
+          # Commit with informative message
+          SUBMODULE_COMMIT=$(cd kernel_platform/KernelSU-Next && git rev-parse --short HEAD)
+          git commit -m "Update KernelSU-Next submodule to $SUBMODULE_COMMIT"
+          
+          # Push to remote latest branch, with error handling
+          echo "Pushing submodule update to latest branch..."
+          if ! git push origin latest; then
+            echo "Push failed, trying to incorporate remote changes..."
+            git pull --rebase origin latest
+            git push origin latest
+          fi
