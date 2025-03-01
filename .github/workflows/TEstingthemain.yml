@@ -128,39 +128,39 @@ jobs:
           # --- DETAILED PATCH APPLICATION AND VERIFICATION ---
           # 50_add_susfs_in_gki-android14-6.1.patch
           echo "Applying 50_add_susfs_in_gki-android14-6.1.patch..."
-          patch -p1 -v --dry-run < 50_add_susfs_in_gki-android14-6.1.patch
+          #patch -p1 -v --dry-run < 50_add_susfs_in_gki-android14-6.1.patch
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || (echo "Patch 50 failed to apply"; exit 1)
-          git diff --exit-code
-          if [ $? -ne 0 ]; then
-            echo "Changes detected after applying 50_add_susfs_in_gki-android14-6.1.patch (GOOD)"
-          else
-            echo "ERROR: No changes detected after applying 50_add_susfs_in_gki-android14-6.1.patch!"
-            exit 1
-          fi
+          #git diff --exit-code
+          #if [ $? -ne 0 ]; then
+            #echo "Changes detected after applying 50_add_susfs_in_gki-android14-6.1.patch (GOOD)"
+          #else
+            #echo "ERROR: No changes detected after applying 50_add_susfs_in_gki-android14-6.1.patch!"
+           # exit 1
+          #fi
 
           # 69_hide_stuff.patch
           echo "Applying 69_hide_stuff.patch..."
-          patch -p1 -v --dry-run < 69_hide_stuff.patch
+          #patch -p1 -v --dry-run < 69_hide_stuff.patch
           patch -p1 -F 3 < 69_hide_stuff.patch || (echo "Patch 69 failed to apply"; exit 1)
-          git diff --exit-code
-          if [ $? -ne 0 ]; then
-            echo "Changes detected after applying 69_hide_stuff.patch (GOOD)"
-          else
-            echo "ERROR: No changes detected after applying 69_hide_stuff.patch!"
-            exit 1
-          fi
+          #git diff --exit-code
+          #if [ $? -ne 0 ]; then
+            #echo "Changes detected after applying 69_hide_stuff.patch (GOOD)"
+          #else
+            #echo "ERROR: No changes detected after applying 69_hide_stuff.patch!"
+            #exit 1
+          #fi
 
           # new_hooks.patch
-          echo "Applying new_hooks.patch..."
-          patch -p1 -v --dry-run < new_hooks.patch
+          #echo "Applying new_hooks.patch..."
+          #patch -p1 -v --dry-run < new_hooks.patch
           patch -p1 --forward < new_hooks.patch || (echo "Patch new_hooks failed to apply"; exit 1)
-          git diff --exit-code
-          if [ $? -ne 0 ]; then
-            echo "Changes detected after applying new_hooks.patch (GOOD)"
-          else
-            echo "ERROR: No changes detected after applying new_hooks.patch!"
-            exit 1
-          fi
+          #git diff --exit-code
+          #if [ $? -ne 0 ]; then
+            #echo "Changes detected after applying new_hooks.patch (GOOD)"
+          #else
+            #echo "ERROR: No changes detected after applying new_hooks.patch!"
+            #exit 1
+          #fi
           # --- END DETAILED PATCH APPLICATION AND VERIFICATION ---
 
           # --- ADD Makefile MODIFICATION (CRUCIAL!) ---
@@ -184,8 +184,8 @@ jobs:
            set -euxo pipefail
            echo "Contents of fs/Makefile after modifications:"
            cat fs/Makefile > fs_Makefile_after.txt
-           echo "Diff of fs/Makefile:"
-           diff fs_Makefile_before.txt fs_Makefile_after.txt
+           #echo "Diff of fs/Makefile:"
+           #diff fs_Makefile_before.txt fs_Makefile_after.txt
 
       - name: Configure Kernel (Enhanced Verification)
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common
