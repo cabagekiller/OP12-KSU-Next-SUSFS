@@ -98,11 +98,11 @@ jobs:
         run: |
           set -euxo pipefail
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs
-          #git submodule update --init --recursive
-          #cd KernelSU-Next/kernel
-          #KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
-          #echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-          #sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" Makefile
+          git submodule update --init --recursive
+          cd KernelSU-Next/kernel
+          KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
+          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+          sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" Makefile
       - name: Setup SUSFS
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
@@ -205,11 +205,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: ${{ env.BUILD_DIR }}/${{ env.zip_name }}
-          tag_name: ${{ env.KSUVER }}-${{ env.ROOT_DIR_PREFIX }}
+          tag_name: release-${{ env.CURRENT_TIMESTAMP }} # Simple, safe tag
           name: Release ${{ env.ROOT_DIR_PREFIX }} ${{ env.zip_name }}
           body: |
              Release for ${{ env.ROOT_DIR_PREFIX }} based on branch ${{ env.BRANCH }}
-             KSU Version: ${{ env.KSUVER }}
+             KSU Version: ${{ env.KSUVER }}  # Still *include* KSUVER in the body
              Timestamp: ${{ env.CURRENT_TIMESTAMP }}
       - name: Upload Build Logs
         uses: actions/upload-artifact@v4
