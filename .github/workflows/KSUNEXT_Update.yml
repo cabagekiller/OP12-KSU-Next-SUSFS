@@ -64,7 +64,7 @@ jobs:
           if [[ -n $(git status -s | grep "kernel_platform/KernelSU-Next") ]]; then
             echo "changes=true" >> $GITHUB_OUTPUT
             echo "Found submodule changes to commit"
-          else:
+          else
             echo "changes=false" >> $GITHUB_OUTPUT
             echo "No submodule changes detected"
           fi
