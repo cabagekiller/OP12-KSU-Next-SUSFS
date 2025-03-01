@@ -227,7 +227,6 @@ jobs:
            CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
            CONFIG_KSU_SUSFS_SUS_SU=n
            CONFIG_KSU_WITH_KPROBES=n
-           CONFIG_COMPAT=y
            CONFIG_TMPFS_XATTR=y
            EOF
 
