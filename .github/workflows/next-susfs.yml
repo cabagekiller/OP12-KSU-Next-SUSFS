@@ -118,27 +118,39 @@ jobs:
           # Function to update the submodule and get the version
           update_kernelsu() {
             local submodule_path="kernel_platform/oneplus12_v/kernel_platform"
-            cd "$submodule_path" || return  # Exit function if cd fails
+
+            # Store the initial HEAD commit of the submodule
+            local initial_head=$(cd "$submodule_path" && git rev-parse HEAD)
+
+            cd "$submodule_path" || return
             git fetch origin
             git checkout next-susfs
             git pull origin next-susfs
-            pwd
-            ls -la
 
+            # Get the version (moved inside the submodule directory)
             KSU_VERSION=$(cd kernel && git describe --tags --abbrev=0)
             echo "KSUVER=${KSU_VERSION}" >> "$GITHUB_ENV"
 
-            cd - > /dev/null || return  # Go back to previous directory, handle errors
-            git add "$submodule_path"
-            git commit -m "Update KernelSU-Next submodule to latest on next-susfs"
+            # Store the new HEAD commit of the submodule
+            local new_head=$(git rev-parse HEAD)
+
+            cd - > /dev/null || return  # Go back to previous directory
+
+            # Only commit if the HEAD has changed
+            if [[ "$initial_head" != "$new_head" ]]; then
+              git add "$submodule_path"
+              git commit -m "Update KernelSU-Next submodule to latest on next-susfs"
+            fi
           }
 
           # Call the function to update the submodule
           update_kernelsu
 
-          # Continue with the rest of your script at the root level
-          # ... any other commands you need to run at the root ...
-
+          # Add any other untracked files you want to commit
+          # (This should be separate from the submodule update)
+          # Example:
+          # git add builds/ pahole/
+          # git commit -m "Add builds and pahole directories"
 
       - name: Setup SUSFS in Kernel
         working-directory: ${{ github.workspace }} # Work in the ROOT of your repo
