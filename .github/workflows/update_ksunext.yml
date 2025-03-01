@@ -16,7 +16,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}  # Personal access token with repo scope
+          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Configure Git
@@ -26,20 +26,38 @@ jobs:
 
       - name: Update submodule
         run: |
-          # Initialize and update submodule
+          # Initialize submodule
           git submodule init
           git submodule update
           
           # Go to submodule directory
           cd kernel_platform/KernelSU-Next
           
-          # Fetch and checkout the next branch
-          git fetch origin next
-          git checkout next
-          git pull origin next
+          # Add verbose output for debugging
+          echo "Remote repositories:"
+          git remote -v
+          
+          # Force fetch the very latest from remote
+          git fetch --force --prune origin
+          
+          # Display all branches to confirm what we're seeing
+          echo "Available branches:"
+          git branch -a
+          
+          # Hard reset to origin/next to force getting the latest
+          git checkout -B next --track origin/next
+          git reset --hard origin/next
+          
+          # Verify we have the latest commit
+          echo "Current commit:"
+          git rev-parse HEAD
+          git log -1 --pretty=format:"%h %s"
           
           # Return to parent repository
           cd ../..
+          
+          echo "Submodule status:"
+          git submodule status
 
       - name: Check for changes
         id: check_changes
