@@ -114,7 +114,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           set -euxo pipefail
-          cd kernel_platform/KernelSU-Next
+          cd kernel_platform/oneplus12_v/kernel_platform/KernelSU-Next
           git fetch origin
           git checkout next-susfs
           git pull origin next-susfs
@@ -133,7 +133,7 @@ jobs:
 
           SUSFS_PATCHES=/home/runner/work/OP12-KSU-Next-SUSFS/OP12-KSU-Next-SUSFS/builds/OP12-A15-cabage-release/susfs4ksu/kernel_patches  # Absolute paths
           KERNEL_PATCHES=/home/runner/work/OP12-KSU-Next-SUSFS/OP12-KSU-Next-SUSFS/builds/OP12-A15-cabage-release/kernel_patches        # Absolute paths
-          KSU_NEXT="kernel_platform/KernelSU-Next"    # Now relative to github.workspace
+          KSU_NEXT="kernel_platform/oneplus12_v/kernel_platform/KernelSU-Next"    # Now relative to github.workspace
 
           echo "Workspace root:"
           pwd
@@ -141,30 +141,18 @@ jobs:
 
           # No need to remove KSU_NEXT, as it's part of your repository.
 
-          cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
+          #cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
           #cp "${KERNEL_PATCHES}/ksu-next_susfs-v1.5.5.patch" "${KSU_NEXT}/"
 
           echo "Before patching KSU-Next:"
           pwd
           ls -la
 
-          cd "${KSU_NEXT}"
-          echo "Inside KSU-Next:"
-          pwd
-          ls -la
           #patch -p1 --forward < ksu-next_susfs-v1.5.5.patch || true
-          cd ../../
-          pwd
-          ls -la
+
           cd "${BUILD_DIR}/"
-          pwd  # Print the working directory after the cd
-          ls -la # list the files in the directory
           cd "${KERNEL_DIR}/"
-          pwd
-          ls -la
           cd kernel_platform
-          pwd
-          ls -la
           #cp "${SUSFS_PATCHES}/fs/sus_su.c" ./common/fs/
           cp "${SUSFS_PATCHES}/fs/susfs.c" ./common/fs/
           #cp "${SUSFS_PATCHES}/include/linux/sus_su.h" ./common/include/linux/
