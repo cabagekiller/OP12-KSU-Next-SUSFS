@@ -129,6 +129,21 @@ jobs:
           sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" Makefile
           cd ../../  # Back to the root of your repository
 
+      - name: Update Submodule to Latest on 'next-susfs'
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euxo pipefail
+          cd kernel_platform/KernelSU-Next
+          git fetch origin
+          git checkout next-susfs
+          git pull origin next-susfs
+          cd ../../  # Back to the root of the repository
+          KSU_VERSION=$(cd kernel_platform/KernelSU-Next/kernel && git describe --tags --abbrev=0)
+          echo "KSUVER=${KSU_VERSION}" >> $GITHUB_ENV
+          git add kernel_platform/KernelSU-Next # Stage submodule update
+          git commit -m "Update KernelSU-Next submodule to latest on next-susfs" # Commit submodule update
+          # NO PUSH HERE - let the action handle pushing at the end if needed
+
 
       - name: Setup SUSFS in Kernel
         working-directory: ${{ github.workspace }} # Work in the ROOT of your repo
@@ -146,7 +161,7 @@ jobs:
           # No need to remove KSU_NEXT, as it's part of your repository.
 
           cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
-          #cp "${KERNEL_PATCHES}/ksu-next_susfs-v1.5.5.patch" "${KSU_NEXT}/"
+          cp "${KERNEL_PATCHES}/ksu-next_susfs-v1.5.5.patch" "${KSU_NEXT}/"
 
           echo "Before patching KSU-Next:"
           pwd
@@ -166,7 +181,7 @@ jobs:
           cd "${KERNEL_DIR}/"
           pwd
           ls -la
-          cd ./kernel_platform
+          cd kernel_platform
           pwd
           ls -la
           #cp "${SUSFS_PATCHES}/fs/sus_su.c" ./common/fs/
@@ -177,7 +192,7 @@ jobs:
           cp "${SUSFS_PATCHES}/50_add_susfs_in_gki-android14-6.1.patch" ./common/
           cp "${KERNEL_PATCHES}/69_hide_stuff.patch" ./common/
           cp "${KERNEL_PATCHES}/new_hooks.patch" ./common/
-          cd ./common
+          cd common
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
           patch -p1 -F 3 < 69_hide_stuff.patch || true
           patch -p1 --forward < new_hooks.patch || true
