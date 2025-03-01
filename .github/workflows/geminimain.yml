@@ -133,9 +133,9 @@ jobs:
           KSU_NEXT="kernel_platform/KernelSU-Next"
 
           # Copy patches and source files (using absolute paths from BUILD_DIR)
-          cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
-          cd "${KSU_NEXT}"
-          cd ../../
+          #cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
+          #cd "${KSU_NEXT}"
+          #cd ../../
           cd "${env.BUILD_DIR}/${KERNEL_DIR}/kernel_platform" # Use the previously defined variables
           cp "${SUSFS_PATCHES}/fs/susfs.c" ./common/fs/
           cp "${SUSFS_PATCHES}/include/linux/susfs.h" ./common/include/linux/
