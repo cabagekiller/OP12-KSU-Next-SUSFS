@@ -114,18 +114,30 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           set -euxo pipefail
-          cd kernel_platform/oneplus12_v/kernel_platform/
-          git fetch origin
-          git checkout next-susfs
-          git pull origin next-susfs
-          pwd
-          ls -la
-          cd ../../  # Back to the root of the repository
-          KSU_VERSION=$(cd kernel_platform/oneplus12_v/kernel_platform/kernel && git describe --tags --abbrev=0)
-          echo "KSUVER=${KSU_VERSION}" >> $GITHUB_ENV
-          git add kernel_platform/oneplus12_v/kernel_platform/ # Stage submodule update
-          git commit -m "Update KernelSU-Next submodule to latest on next-susfs" # Commit submodule update
-          # NO PUSH HERE - let the action handle pushing at the end if needed
+
+          # Function to update the submodule and get the version
+          update_kernelsu() {
+            local submodule_path="kernel_platform/oneplus12_v/kernel_platform"
+            cd "$submodule_path" || return  # Exit function if cd fails
+            git fetch origin
+            git checkout next-susfs
+            git pull origin next-susfs
+            pwd
+            ls -la
+
+            KSU_VERSION=$(cd kernel && git describe --tags --abbrev=0)
+            echo "KSUVER=${KSU_VERSION}" >> "$GITHUB_ENV"
+
+            cd - > /dev/null || return  # Go back to previous directory, handle errors
+            git add "$submodule_path"
+            git commit -m "Update KernelSU-Next submodule to latest on next-susfs"
+          }
+
+          # Call the function to update the submodule
+          update_kernelsu
+
+          # Continue with the rest of your script at the root level
+          # ... any other commands you need to run at the root ...
 
 
       - name: Setup SUSFS in Kernel
