@@ -123,10 +123,10 @@ jobs:
           KERNEL_PATCHES=/home/runner/work/kernesunextsusfs/kernesunextsusfs/builds/OP12-A15-cabage-release/kernel_patches        # Absolute paths
           KSU_NEXT="kernel_platform/KernelSU-Next"    # Now relative to github.workspace
           # No need to remove KSU_NEXT, as it's part of your repository.
-          cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
-          cp "${KERNEL_PATCHES}/0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch" "${KSU_NEXT}/"
+          #cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
+          #cp "${KERNEL_PATCHES}/0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch" "${KSU_NEXT}/"
           cd "${KSU_NEXT}"
-          patch -p1 --forward < 0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch || true
+          #patch -p1 --forward < 0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch || true
           cd ../../
           cd "${BUILD_DIR}/"
           pwd  # Print the working directory after the cd
@@ -140,11 +140,11 @@ jobs:
           cp "${SUSFS_PATCHES}/include/linux/susfs_def.h" ./common/include/linux/
           cp "${SUSFS_PATCHES}/50_add_susfs_in_gki-android14-6.1.patch" ./common/
           cp "${KERNEL_PATCHES}/69_hide_stuff.patch" ./common/
-          cp "${KERNEL_PATCHES}/new_hooks.patch" ./common/
+          cp "${KERNEL_PATCHES}/next/next_hooks.patch" ./common/
           cd common
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
           patch -p1 -F 3 < 69_hide_stuff.patch || true
-          patch -p1 --forward < new_hooks.patch || true
+          patch -p1 --forward < next_hooks.patch || true
           #sed -i '/obj-\$\(CONFIG_KSU_SUSFS_SUS_SU\) += sus_su.o/d' /home/runner/work/kernesunextsusfs/kernesunextsusfs/builds/OP12-A15-cabage-release/kernel_platform/oneplus12_v/kernel_platform/common/fs/Makefile
           #git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)" || true)
           #cd ..
