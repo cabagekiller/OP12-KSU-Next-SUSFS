@@ -127,10 +127,10 @@ jobs:
 
            cd ../msm-kernel
            # BBRv3
-           cp -rf ../../kernel_patches/bbr/tcp_bbr.c ./net/ipv4/tcp_bbr.c
-           cp ../../kernel_patches/bbr/bbrv3-5.15+.patch ./
+           cp -rf ../../../../kernel_patches/bbr/tcp_bbr.c ./net/ipv4/tcp_bbr.c
+           cp ../../../../kernel_patches/bbr/bbrv3-5.15+.patch ./
            patch -p1 -F 3 < bbrv3-5.15+.patch
-           cp ../../kernesunextsusfs/enable_bbr.patch ./
+           cp ../../../../kernesunextsusfs/enable_bbr.patch ./
            patch -p1 -F 3 < enable_bbr.patch
           
           #sed -i '/obj-$(CONFIG_KSU_SUSFS_SUS_SU) += sus_su.o/d' ./fs/Makefile
