@@ -179,7 +179,41 @@ jobs:
           # Optional: Keep Reno/Cubic as alternatives 
           echo "CONFIG_TCP_CONG_CUBIC=y" >> ./common/arch/arm64/configs/gki_defconfig 
           echo "CONFIG_TCP_CONG_RENO=y" >> ./common/arch/arm64/configs/gki_defconfig 
+          # Disable Unnecessary TCP Congestion Algorithms 
+          echo "# CONFIG_TCP_CONG_BIC is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_TCP_CONG_WESTWOOD is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_TCP_CONG_HTCP is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_TCP_CONG_HSTCP is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_TCP_CONG_HYBLA is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_TCP_CONG_VEGAS is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_TCP_CONG_NV is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_TCP_CONG_SCALABLE is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_TCP_CONG_LP is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_TCP_CONG_VENO is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_TCP_CONG_YEAH is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_TCP_CONG_ILLINOIS is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_TCP_CONG_DCTCP is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_TCP_CONG_CDG is not set" >> ./common/arch/arm64/configs/gki_defconfig 
 
+          # Disable Other Default Congestion Controls 
+          echo "# CONFIG_DEFAULT_BIC is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_DEFAULT_HTCP is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_DEFAULT_WESTWOOD is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_DEFAULT_RENO is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+
+          # Enable FQ-CoDel for Queue Management 
+          echo "CONFIG_NET_SCH_FQ_CODEL=y" >> ./common/arch/arm64/configs/gki_defconfig 
+
+          # Disable Other Queuing Disciplines 
+          echo "# CONFIG_NET_SCH_NETEM is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_NET_SCH_CBS is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_NET_SCH_DEFAULT is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_NET_SCH_HTB is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_NET_SCH_HFSC is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_NET_SCH_PRIO is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_NET_SCH_RED is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_NET_SCH_SFQ is not set" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "# CONFIG_NET_SCH_TBF is not set" >> ./common/arch/arm64/configs/gki_defconfig
           # Remove defconfig check
           sed -i '2s/check_defconfig//' ./common/build.config.gki
 
