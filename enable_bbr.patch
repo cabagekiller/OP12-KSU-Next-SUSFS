@@ -1,0 +1,39 @@
+diff -uprN a/net/ipv4/Kconfig b/net/ipv4/Kconfig
+--- a/net/ipv4/Kconfig	2025-03-08 12:35:53.869880500 +0800
++++ b/net/ipv4/Kconfig	2025-03-08 12:43:30.550816300 +0800
+@@ -495,7 +495,7 @@ config TCP_CONG_BIC
+ 
+ config TCP_CONG_CUBIC
+ 	tristate "CUBIC TCP"
+-	default y
++	default n
+ 	help
+ 	  This is version 2.0 of BIC-TCP which uses a cubic growth function
+ 	  among other techniques.
+@@ -665,7 +665,7 @@ config TCP_CONG_CDG
+ 
+ config TCP_CONG_BBR
+ 	tristate "BBR TCP"
+-	default n
++	default y
+ 	help
+ 
+ 	  BBR (Bottleneck Bandwidth and RTT) TCP congestion control aims to
+@@ -680,7 +680,7 @@ config TCP_CONG_BBR
+ 
+ choice
+ 	prompt "Default TCP congestion control"
+-	default DEFAULT_CUBIC
++	default DEFAULT_BBR
+ 	help
+ 	  Select the TCP congestion control that will be used by default
+ 	  for all connections.
+@@ -724,7 +724,7 @@ endif
+ config TCP_CONG_CUBIC
+ 	tristate
+ 	depends on !TCP_CONG_ADVANCED
+-	default y
++	default n
+ 
+ config DEFAULT_TCP_CONG
+ 	string
