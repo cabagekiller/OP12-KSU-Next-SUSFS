@@ -72,7 +72,7 @@ jobs:
         working-directory: ${{ env.BUILD_DIR }}
         run: |
           set -euxo pipefail
-          git clone --recursive https://github.com/TheWildJames/AnyKernel3.git -b gki
+          git clone --recursive https://github.com/TheWildJames/AnyKernel3.git -b gki-2.0
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
           git clone https://github.com/cabagekiller/kernel_patches.git
       - name: Setup Kernel Source
