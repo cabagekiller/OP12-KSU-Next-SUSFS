@@ -250,6 +250,7 @@ jobs:
             "include/linux/if_vxlan.h"
             "include/linux/if_tap.h"
             "include/linux/if_tun.h"
+            "include/linux/array_size.h"
           )
       
           for header in "${headers[@]}"; do
