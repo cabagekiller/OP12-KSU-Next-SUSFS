@@ -260,6 +260,7 @@ jobs:
               echo "⚠️  Missing in upstream: $header (skipped)"
             fi
           done
+          mkdir -p common/include/net/netns
           cp upstream-linux/include/net/netns/mib.h common/include/net/netns/mib.h
           echo "🧹 Cleaning up..."
           rm -rf upstream-linux
