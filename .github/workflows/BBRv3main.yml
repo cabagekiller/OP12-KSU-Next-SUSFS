@@ -339,6 +339,69 @@ jobs:
           end_time=$(date +%s)
           build_time=$((end_time - start_time))
           echo "Kernel build time: $build_time seconds"
+      - name: Auto-retry Bazel build with header restoration
+        run: |
+          set -e
+          UPSTREAM_DIR=upstream-linux/include
+          DEST_ROOT=common/include
+          MAX_RETRIES=5
+          LOG_FILE=build.log
+      
+          restore_headers() {
+            echo "📄 Scanning for missing headers..."
+            grep -oP "fatal error: '\K[^']+(?=')" "$LOG_FILE" | sort -u > missing_headers.txt
+      
+            if [[ ! -s missing_headers.txt ]]; then
+              echo "✅ No missing headers found."
+              return 1
+            fi
+      
+            echo "📂 Restoring headers from $UPSTREAM_DIR..."
+            while read -r HEADER; do
+              SRC="$UPSTREAM_DIR/$HEADER"
+              DEST="$DEST_ROOT/$HEADER"
+              DEST_DIR=$(dirname "$DEST")
+      
+              echo "→ $HEADER"
+              if [ -f "$SRC" ]; then
+                mkdir -p "$DEST_DIR"
+                cp "$SRC" "$DEST"
+                echo "✓ Restored $HEADER"
+              else
+                echo "⚠️ Header not found: $SRC"
+              fi
+            done < missing_headers.txt
+            return 0
+          }
+      
+          run_build() {
+            echo "⚙️ Running Bazel build..."
+            ./build_with_bazel.py \
+              -t pineapple gki \
+              --jobs="$(nproc --all)" --verbose_failures --config=stamp \
+              --user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom \
+              --ignore_missing_projects -o "$(pwd)/out" &> "$LOG_FILE"
+          }
+      
+          echo "🚀 Starting auto-build with header patching..."
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "🔁 Attempt $i/$MAX_RETRIES"
+            if run_build; then
+              echo "🎉 Build succeeded on attempt $i!"
+              exit 0
+            fi
+      
+            echo "❌ Build failed. Checking for missing headers..."
+            if ! restore_headers; then
+              echo "🧼 No headers to restore. Exiting loop."
+              break
+            fi
+            echo "♻️ Retrying build..."
+          done
+      
+          echo "❗ Build failed after $MAX_RETRIES attempts."
+          exit 1
+
       - name: Create ZIP Package
         working-directory: ${{ env.BUILD_DIR }}
         run: |
