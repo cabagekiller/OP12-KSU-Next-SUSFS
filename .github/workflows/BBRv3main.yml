@@ -239,6 +239,10 @@ jobs:
           echo "📂 Copying all headers from upstream Linux include/linux..."
           cp -r upstream-linux/include/linux/* common/include/linux/
           echo "✅ Copied all headers from upstream Linux include/linux"
+          # Copy uapi headers from upstream-linux/include/uapi/linux to common/include/uapi/linux
+          echo "📂 Copying all uapi headers from upstream Linux include/uapi/linux..."
+          cp -r upstream-linux/include/uapi/linux/* common/include/uapi/linux/
+          echo "✅ Copied all uapi headers from upstream Linux include/uapi/linux"
           mkdir -p common/include/net/netns
           cp upstream-linux/include/net/netns/mib.h common/include/net/netns/mib.h
           echo "🧹 Cleaning up..."
