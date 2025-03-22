@@ -354,6 +354,9 @@ jobs:
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
+          ls -l kernel_platform/common/include/net/netns/mib.h
+          echo "🔍 Verifying copied header:"
+          find kernel_platform/common/include/net/netns/ -name "mib.h"
           mkdir -p out
           start_time=$(date +%s)
           export PATH="/usr/lib/ccache:$PATH"
@@ -364,7 +367,7 @@ jobs:
           --sandbox_debug \
           --subcommands \
           --config=stamp \
-          --copt="-Ikernel_platform/common/include" \
+          --copt="-I$(pwd)/common/include" \
           --user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom \
           --ignore_missing_projects \
           -o "$(pwd)/out"
