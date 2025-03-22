@@ -263,6 +263,7 @@ jobs:
           mkdir -p common/include/net/netns
           cp upstream-linux/include/net/netns/mib.h common/include/net/netns/mib.h
           echo "🧹 Cleaning up..."
+          rm -rf upstream-linux
           echo "🎉 Header restoration complete!"
 
       - name: ⚙️ Integrate BBRv3 into kernel source
@@ -322,16 +323,33 @@ jobs:
         
             echo "🎉 BBRv3 integration completed!"
 
+      - name: Clone upstream Linux kernel (for missing headers)
+        run: |
+          git clone --depth=1 https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git upstream-linux
+      - name: Restore missing netns/mib.h from upstream
+        run: |
+          echo "[*] Restoring netns/mib.h if needed..."
+          TARGET_HEADER_PATH="common/include/net/netns/mib.h"
+          if [ ! -f "$TARGET_HEADER_PATH" ]; then
+            echo "[-] mib.h not found. Copying from upstream..."
+            mkdir -p "$(dirname "$TARGET_HEADER_PATH")"
+            cp upstream-linux/include/net/netns/mib.h "$TARGET_HEADER_PATH"
+          else
+            echo "[+] mib.h already exists at $TARGET_HEADER_PATH"
+          fi
+  
+          # Also ensure Bazel can see it in the execroot
+          EXECROOT=$(find out/bazel/output_user_root -type d -name 'execroot' | head -n 1)
+          if [ -n "$EXECROOT" ]; then
+            echo "[*] Copying mib.h to Bazel execroot..."
+            mkdir -p "$EXECROOT/__main__/common/include/net/netns"
+            cp "$TARGET_HEADER_PATH" "$EXECROOT/__main__/common/include/net/netns/mib.h"
+          fi
+
                 
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
-          # Restore missing netns/mib.h from upstream if it's not already present
-          if [ ! -f common/include/net/netns/mib.h ]; then
-            echo "Restoring netns/mib.h from upstream..."
-            mkdir -p common/include/net/netns
-            cp -f upstream-linux/include/net/netns/mib.h common/include/net/netns/mib.h
-          fi
           set -euxo pipefail
           mkdir -p out
           start_time=$(date +%s)
