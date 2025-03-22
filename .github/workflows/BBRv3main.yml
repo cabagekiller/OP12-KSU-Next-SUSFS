@@ -363,7 +363,6 @@ jobs:
           --sandbox_debug \
           --subcommands \
           --config=stamp \
-          --copt="-I$(pwd)/kernel_platform/common/include" \
           --user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom \
           --ignore_missing_projects \
           -o "$(pwd)/out"
