@@ -251,6 +251,7 @@ jobs:
             "include/linux/if_tap.h"
             "include/linux/if_tun.h"
             "include/linux/array_size.h"
+            "include/linux/hex.h"
           )
       
           for header in "${headers[@]}"; do
