@@ -236,7 +236,6 @@ jobs:
             [bbrv3/kernel_patches/tcp_bbr3_common.h]=common/include/net/tcp_bbr3_common.h
             [bbrv3/kernel_patches/tcp_bbr3_minrtt.h]=common/include/net/tcp_bbr3_minrtt.h
             [bbrv3/kernel_patches/tcp_bbr3_probe_rtt.h]=common/include/net/tcp_bbr3_probe_rtt.h
-            [bbrv3/kernel_patches/tcp_bbr3_bw_probe.h]=common/include/net/tcp_bbr3_bw_probe.h
             [bbrv3/kernel_patches/tcp_bbr3_model.h]=common/include/net/tcp_bbr3_model.h
             [bbrv3/kernel_patches/tcp_bbr3.c]=common/net/ipv4/tcp_bbr3.c
           )
