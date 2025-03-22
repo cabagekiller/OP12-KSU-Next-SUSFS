@@ -252,13 +252,11 @@ jobs:
           )
       
           for header in "${headers[@]}"; do
-            dest="kernel_platform/common/$header"
-            src="upstream-linux/$header"
-          
-            if [[ -f "$src" ]]; then
-              mkdir -p "$(dirname "$dest")"
-              cp "$src" "$dest"
-              echo "✅ Copied: $src -> $dest"
+            if [[ -f "upstream-linux/$header" ]]; then
+              target_dir="kernel_platform/common/$(dirname "$header")"
+              mkdir -p "$target_dir"
+              cp "upstream-linux/$header" "$target_dir"
+              echo "✅ Copied: $header → $target_dir"
             else
               echo "⚠️  Missing in upstream: $header (skipped)"
             fi
@@ -367,7 +365,7 @@ jobs:
           --sandbox_debug \
           --subcommands \
           --config=stamp \
-          --copt="-I$(pwd)/common/include" \
+          --copt="-I$(pwd)/kernel_platform/common/include" \
           --user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom \
           --ignore_missing_projects \
           -o "$(pwd)/out"
