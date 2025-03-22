@@ -209,6 +209,62 @@ jobs:
           echo "# CONFIG_NET_SCH_TBF is not set" >> ./common/arch/arm64/configs/gki_defconfig
           # Remove defconfig check
           sed -i '2s/check_defconfig//' ./common/build.config.gki
+      - name: ♻️ Restore missing Linux kernel headers for BBRv3 integration
+        run: |
+          set -euxo pipefail
+          echo "📥 Cloning upstream Linux kernel source..."
+          git clone --depth=1 https://github.com/torvalds/linux.git upstream-linux
+      
+          echo "🧩 Copying missing headers to kernel source..."
+          declare -a headers=(
+            "include/net/netns/mib.h"
+            "include/net/netns/conntrack.h"
+            "include/net/netns/ipv4.h"
+            "include/net/netns/ipv6.h"
+            "include/net/netns/nexthop.h"
+            "include/linux/version.h"
+            "include/linux/kernel.h"
+            "include/linux/if_ether.h"
+            "include/linux/if_packet.h"
+            "include/linux/if.h"
+            "include/linux/etherdevice.h"
+            "include/linux/netdevice.h"
+            "include/linux/inetdevice.h"
+            "include/linux/ipv6.h"
+            "include/linux/icmpv6.h"
+            "include/linux/tcp.h"
+            "include/linux/udp.h"
+            "include/linux/route.h"
+            "include/linux/if_arp.h"
+            "include/linux/if_vlan.h"
+            "include/linux/if_xdp.h"
+            "include/linux/if_pppox.h"
+            "include/linux/if_tunnel.h"
+            "include/linux/if_bridge.h"
+            "include/linux/if_mpls.h"
+            "include/linux/if_ppp.h"
+            "include/linux/if_gre.h"
+            "include/linux/if_bonding.h"
+            "include/linux/if_macvlan.h"
+            "include/linux/if_vxlan.h"
+            "include/linux/if_tap.h"
+            "include/linux/if_tun.h"
+          )
+      
+          for header in "${headers[@]}"; do
+            if [[ -f "upstream-linux/$header" ]]; then
+              mkdir -p "$(dirname "$header")"
+              cp "upstream-linux/$header" "$header"
+              echo "✅ Copied: $header"
+            else
+              echo "⚠️  Missing in upstream: $header (skipped)"
+            fi
+          done
+      
+          echo "🧹 Cleaning up..."
+          rm -rf upstream-linux
+          echo "🎉 Header restoration complete!"
+
       - name: ⚙️ Integrate BBRv3 into kernel source
         shell: bash
         env:
