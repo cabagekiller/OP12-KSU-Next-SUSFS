@@ -218,34 +218,56 @@ jobs:
           # Remove defconfig check
           sed -i '2s/check_defconfig//' ./common/build.config.gki
 
-      - name: 📂 Conditionally copy BBRv3 headers and source files into common/
+      - name: ⚙️ Integrate BBRv3 into kernel source
+        shell: bash
+        env:
+          BUILD_DIR: ${{ env.BUILD_DIR }}
+          KERNEL_DIR: ${{ env.KERNEL_DIR }}
         run: |
-          echo "📥 Cloning BBRv3 repo..."
+          set -euxo pipefail
+
+          cd "${BUILD_DIR}/${KERNEL_DIR}/kernel_platform"
+
+          echo "📥 Cloning BBRv3 repository..."
           git clone --depth=1 --branch v3 https://github.com/google/bbr bbrv3
 
-          echo "🔁 Starting recursive BBRv3 file copy..."
-
-          # Define source → destination mapping
-          declare -A paths=(
-            ["bbrv3/include/net/netns"]="common/include/net/netns"
-            ["bbrv3/include/linux"]="common/include/linux"
-            ["bbrv3/include/uapi/linux"]="common/include/uapi/linux"
-            ["bbrv3/net/ipv4"]="common/net/ipv4"
-            ["bbrv3/net/ipv6"]="common/net/ipv6"
-            ["bbrv3/net/core"]="common/net/core"
-            ["bbrv3/net/mptcp"]="common/net/mptcp"
+          declare -A file_map=(
+            [bbrv3/kernel_patches/tcp_bbr3.h]=common/include/net/tcp_bbr3.h
+            [bbrv3/kernel_patches/tcp_bbr3_common.h]=common/include/net/tcp_bbr3_common.h
+            [bbrv3/kernel_patches/tcp_bbr3_minrtt.h]=common/include/net/tcp_bbr3_minrtt.h
+            [bbrv3/kernel_patches/tcp_bbr3_probe_rtt.h]=common/include/net/tcp_bbr3_probe_rtt.h
+            [bbrv3/kernel_patches/tcp_bbr3_bw_probe.h]=common/include/net/tcp_bbr3_bw_probe.h
+            [bbrv3/kernel_patches/tcp_bbr3_model.h]=common/include/net/tcp_bbr3_model.h
+            [bbrv3/kernel_patches/tcp_bbr3.c]=common/net/ipv4/tcp_bbr3.c
           )
 
-          for src_dir in "${!paths[@]}"; do
-            dest_dir="${paths[$src_dir]}"
-            echo "📁 Syncing $src_dir → $dest_dir"
-            mkdir -p "$dest_dir"
-            rsync -a --ignore-existing "$src_dir/" "$dest_dir/"
+          echo "🔁 Copying BBRv3 source and header files..."
+          for src in "${!file_map[@]}"; do
+            dst=${file_map[$src]}
+            mkdir -p "$(dirname "$dst")"
+            cp "$src" "$dst"
           done
 
-          echo "✅ BBRv3 files copied into kernel_platform/common"
+          echo "✅ BBRv3 files copied."
 
+          MAKEFILE_PATH="common/net/ipv4/Makefile"
+          if ! grep -q "tcp_bbr3.o" "$MAKEFILE_PATH"; then
+            echo "📦 Adding tcp_bbr3.o to Makefile..."
+            echo "obj-\$(CONFIG_TCP_CONG_BBR3) += tcp_bbr3.o" >> "$MAKEFILE_PATH"
+          else
+            echo "ℹ️ tcp_bbr3.o already present in Makefile."
+          fi
 
+          DEFCONFIG_PATH="common/arch/arm64/configs/gki_defconfig"
+          if ! grep -q "CONFIG_TCP_CONG_BBR3" "$DEFCONFIG_PATH"; then
+            echo "⚙️ Enabling CONFIG_TCP_CONG_BBR3 in gki_defconfig..."
+            echo "CONFIG_TCP_CONG_BBR3=y" >> "$DEFCONFIG_PATH"
+          else
+            echo "ℹ️ CONFIG_TCP_CONG_BBR3 already set in defconfig."
+          fi
+
+          echo "🎉 BBRv3 integration completed successfully!"
+        
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
