@@ -223,35 +223,6 @@ jobs:
             "include/net/netns/ipv4.h"
             "include/net/netns/ipv6.h"
             "include/net/netns/nexthop.h"
-            "include/linux/version.h"
-            "include/linux/kernel.h"
-            "include/linux/if_ether.h"
-            "include/linux/if_packet.h"
-            "include/linux/if.h"
-            "include/linux/etherdevice.h"
-            "include/linux/netdevice.h"
-            "include/linux/inetdevice.h"
-            "include/linux/ipv6.h"
-            "include/linux/icmpv6.h"
-            "include/linux/tcp.h"
-            "include/linux/udp.h"
-            "include/linux/route.h"
-            "include/linux/if_arp.h"
-            "include/linux/if_vlan.h"
-            "include/linux/if_xdp.h"
-            "include/linux/if_pppox.h"
-            "include/linux/if_tunnel.h"
-            "include/linux/if_bridge.h"
-            "include/linux/if_mpls.h"
-            "include/linux/if_ppp.h"
-            "include/linux/if_gre.h"
-            "include/linux/if_bonding.h"
-            "include/linux/if_macvlan.h"
-            "include/linux/if_vxlan.h"
-            "include/linux/if_tap.h"
-            "include/linux/if_tun.h"
-            "include/linux/array_size.h"
-            "include/linux/hex.h"
           )
       
           for header in "${headers[@]}"; do
@@ -264,6 +235,10 @@ jobs:
               echo "⚠️  Missing in upstream: $header (skipped)"
             fi
           done
+          # Copy all files recursively from upstream-linux/include/linux to common/include/linux
+          echo "📂 Copying all headers from upstream Linux include/linux..."
+          cp -r upstream-linux/include/linux/* common/include/linux/
+          echo "✅ Copied all headers from upstream Linux include/linux"
           mkdir -p common/include/net/netns
           cp upstream-linux/include/net/netns/mib.h common/include/net/netns/mib.h
           echo "🧹 Cleaning up..."
