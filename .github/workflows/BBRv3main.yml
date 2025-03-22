@@ -252,10 +252,13 @@ jobs:
           )
       
           for header in "${headers[@]}"; do
-            if [[ -f "upstream-linux/$header" ]]; then
-              mkdir -p "$(dirname "$header")"
-              cp "upstream-linux/$header" "$header"
-              echo "✅ Copied: $header"
+            dest="kernel_platform/common/$header"
+            src="upstream-linux/$header"
+          
+            if [[ -f "$src" ]]; then
+              mkdir -p "$(dirname "$dest")"
+              cp "$src" "$dest"
+              echo "✅ Copied: $src -> $dest"
             else
               echo "⚠️  Missing in upstream: $header (skipped)"
             fi
