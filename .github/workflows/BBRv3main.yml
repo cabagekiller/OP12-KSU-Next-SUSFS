@@ -173,9 +173,9 @@ jobs:
           echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
           # Enable BBR and Set as Default 
           echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./common/arch/arm64/configs/gki_defconfig 
-          echo "CONFIG_TCP_CONG_BBR3=y" >> ./common/arch/arm64/configs/gki_defconfig 
-          echo "CONFIG_DEFAULT_BBR3=y" >> ./common/arch/arm64/configs/gki_defconfig 
-          echo 'CONFIG_DEFAULT_TCP_CONG="bbr3"' >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "CONFIG_TCP_CONG_BBR=y" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "CONFIG_DEFAULT_BBR=y" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo 'CONFIG_DEFAULT_TCP_CONG="bbr"' >> ./common/arch/arm64/configs/gki_defconfig 
 
           # Optional: Keep Reno/Cubic as alternatives 
           echo "CONFIG_TCP_CONG_CUBIC=y" >> ./common/arch/arm64/configs/gki_defconfig 
@@ -223,36 +223,27 @@ jobs:
           echo "📥 Cloning BBRv3 repo..."
           git clone --depth=1 --branch v3 https://github.com/google/bbr bbrv3
 
+          echo "🔁 Starting recursive BBRv3 file copy..."
+
           # Define source → destination mapping
           declare -A paths=(
             ["bbrv3/include/net/netns"]="common/include/net/netns"
+            ["bbrv3/include/linux"]="common/include/linux"
+            ["bbrv3/include/uapi/linux"]="common/include/uapi/linux"
             ["bbrv3/net/ipv4"]="common/net/ipv4"
+            ["bbrv3/net/ipv6"]="common/net/ipv6"
             ["bbrv3/net/core"]="common/net/core"
+            ["bbrv3/net/mptcp"]="common/net/mptcp"
           )
 
           for src_dir in "${!paths[@]}"; do
             dest_dir="${paths[$src_dir]}"
-            echo "📁 Processing files from $src_dir → $dest_dir"
+            echo "📁 Syncing $src_dir → $dest_dir"
             mkdir -p "$dest_dir"
-
-            for item in "$src_dir"/*; do
-              name=$(basename "$item")
-              target="$dest_dir/$name"
-
-              if [ -f "$item" ]; then
-                if [ -f "$target" ]; then
-                  echo "⚠️  Skipping $target (already exists)"
-                else
-                  cp "$item" "$target"
-                  echo "✅ Copied file $name to $dest_dir"
-                fi
-              elif [ -d "$item" ]; then
-                mkdir -p "$target"
-                echo "📦 Copying directory $name to $target"
-                rsync -a --ignore-existing "$item/" "$target/"
-              fi
-            done
+            rsync -a --ignore-existing "$src_dir/" "$dest_dir/"
           done
+
+          echo "✅ BBRv3 files copied into kernel_platform/common"
 
 
       - name: Build Kernel
