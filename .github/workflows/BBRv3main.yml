@@ -263,7 +263,6 @@ jobs:
           mkdir -p common/include/net/netns
           cp upstream-linux/include/net/netns/mib.h common/include/net/netns/mib.h
           echo "🧹 Cleaning up..."
-          rm -rf upstream-linux
           echo "🎉 Header restoration complete!"
 
       - name: ⚙️ Integrate BBRv3 into kernel source
