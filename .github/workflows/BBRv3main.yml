@@ -354,9 +354,9 @@ jobs:
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
-          ls -l kernel_platform/common/include/net/netns/mib.h
+          ls -l common/include/net/netns/mib.h
           echo "🔍 Verifying copied header:"
-          find kernel_platform/common/include/net/netns/ -name "mib.h"
+          find common/include/net/netns/ -name "mib.h"
           mkdir -p out
           start_time=$(date +%s)
           export PATH="/usr/lib/ccache:$PATH"
