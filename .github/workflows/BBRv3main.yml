@@ -218,12 +218,12 @@ jobs:
           # Remove defconfig check
           sed -i '2s/check_defconfig//' ./common/build.config.gki
 
-      - name: 📂 Conditionally copy BBRv3 headers and source files
+      - name: 📂 Conditionally copy BBRv3 headers and source files into common/
         run: |
           echo "📥 Cloning BBRv3 repo..."
           git clone --depth=1 --branch v3 https://github.com/google/bbr bbrv3
 
-          # Define source → target directory mappings
+          # Define source → destination mapping
           declare -A paths=(
             ["bbrv3/include/net/netns"]="common/include/net/netns"
             ["bbrv3/net/ipv4"]="common/net/ipv4"
@@ -233,21 +233,27 @@ jobs:
           for src_dir in "${!paths[@]}"; do
             dest_dir="${paths[$src_dir]}"
             echo "📁 Processing files from $src_dir → $dest_dir"
-
             mkdir -p "$dest_dir"
 
-            for file in "$src_dir"/*; do
-              filename=$(basename "$file")
-              target="$dest_dir/$filename"
+            for item in "$src_dir"/*; do
+              name=$(basename "$item")
+              target="$dest_dir/$name"
 
-              if [ -f "$target" ]; then
-                echo "⚠️  Skipping $target (already exists)"
-              else
-                cp "$file" "$target"
-                echo "✅ Copied $filename to $dest_dir"
+              if [ -f "$item" ]; then
+                if [ -f "$target" ]; then
+                  echo "⚠️  Skipping $target (already exists)"
+                else
+                  cp "$item" "$target"
+                  echo "✅ Copied file $name to $dest_dir"
+                fi
+              elif [ -d "$item" ]; then
+                mkdir -p "$target"
+                echo "📦 Copying directory $name to $target"
+                rsync -a --ignore-existing "$item/" "$target/"
               fi
             done
           done
+
 
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
