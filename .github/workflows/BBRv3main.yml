@@ -126,14 +126,6 @@ jobs:
           patch -p1 --forward < syscall_hooks.patch || echo "Warning: KernelSU SUSFS patch may have been already applied or failed."
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || echo "Warning: SUSFS patch may have been already applied."
           patch -p1 -F 3 < 69_hide_stuff.patch || echo "Warning: 69_hide_stuff patch may have been already applied."
-
-           cd ../msm-kernel
-           # BBRv3
-           #cp -rf ../../../../kernel_patches/bbr/tcp_bbr.c ./net/ipv4/tcp_bbr.c
-           #cp ../../../../kernel_patches/bbr/bbrv3-5.15+.patch ./
-           #patch -p1 -F 3 < bbrv3-5.15+.patch
-           #cp ../../../../kernel_patches/bbr/enable_bbr.patch ./
-           #patch -p1 -F 3 < enable_bbr.patch
            
           #sed -i '/obj-$(CONFIG_KSU_SUSFS_SUS_SU) += sus_su.o/d' ./fs/Makefile
           git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)" || true)
@@ -217,6 +209,43 @@ jobs:
           echo "# CONFIG_NET_SCH_TBF is not set" >> ./common/arch/arm64/configs/gki_defconfig
           # Remove defconfig check
           sed -i '2s/check_defconfig//' ./common/build.config.gki
+      - name: ⬇️ Fetch full BBRv3 source and headers
+        run: |
+          set -e
+
+          echo "📥 Cloning upstream Android common kernel..."
+          git clone --depth=1 --branch=android14-6.1 https://android.googlesource.com/kernel/common upstream-kernel
+
+          echo "📁 Preparing destination..."
+          mkdir -p bbrv3/kernel_patches
+
+          echo "📦 Copying BBRv3 source and headers..."
+
+          declare -A files=(
+            ["net/ipv4/tcp_bbr3.c"]="bbrv3/kernel_patches/tcp_bbr3.c"
+            ["include/net/tcp_bbr3.h"]="bbrv3/kernel_patches/tcp_bbr3.h"
+            ["include/net/tcp_bbr3_bw_probe.h"]="bbrv3/kernel_patches/tcp_bbr3_bw_probe.h"
+            ["include/net/tcp_bbr3_common.h"]="bbrv3/kernel_patches/tcp_bbr3_common.h"
+            ["include/net/tcp_bbr3_minrtt.h"]="bbrv3/kernel_patches/tcp_bbr3_minrtt.h"
+            ["include/net/tcp_bbr3_probe_rtt.h"]="bbrv3/kernel_patches/tcp_bbr3_probe_rtt.h"
+            ["include/net/tcp_bbr3_model.h"]="bbrv3/kernel_patches/tcp_bbr3_model.h"
+          )
+
+          for src_path in "${!files[@]}"; do
+            dst_path="${files[$src_path]}"
+            if [[ -f "upstream-kernel/$src_path" ]]; then
+              mkdir -p "$(dirname "$dst_path")"
+              cp "upstream-kernel/$src_path" "$dst_path"
+              echo "✅ Copied $src_path"
+            else
+              echo "⚠️  Missing: $src_path (skipped)"
+            fi
+          done
+
+          echo "🧹 Cleaning up..."
+          rm -rf upstream-kernel
+
+          echo "🎉 Done! BBRv3 files are in bbrv3/kernel_patches/"
 
       - name: ⚙️ Integrate BBRv3 into kernel source
         shell: bash
