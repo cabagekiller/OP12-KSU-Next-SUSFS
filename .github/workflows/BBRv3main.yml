@@ -210,6 +210,7 @@ jobs:
           # Remove defconfig check
           sed -i '2s/check_defconfig//' ./common/build.config.gki
       - name: ♻️ Restore missing Linux kernel headers for BBRv3 integration
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
           echo "📥 Cloning upstream Linux kernel source..."
@@ -253,7 +254,7 @@ jobs:
       
           for header in "${headers[@]}"; do
             if [[ -f "upstream-linux/$header" ]]; then
-              target_dir="kernel_platform/common/$(dirname "$header")"
+              target_dir="common/$(dirname "$header")"
               mkdir -p "$target_dir"
               cp "upstream-linux/$header" "$target_dir"
               echo "✅ Copied: $header → $target_dir"
@@ -269,12 +270,9 @@ jobs:
 
       - name: ⚙️ Integrate BBRv3 into kernel source
         shell: bash
-        env:
-            BUILD_DIR: ${{ env.BUILD_DIR }}
-            KERNEL_DIR: ${{ env.KERNEL_DIR }}
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
             set -euxo pipefail
-            cd "${BUILD_DIR}/${KERNEL_DIR}/kernel_platform"
         
             echo "📥 Cloning Google BBRv3 source..."
             git clone --depth=1 --branch v3 https://github.com/google/bbr bbrv3
