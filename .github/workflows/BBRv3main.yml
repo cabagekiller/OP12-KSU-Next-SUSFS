@@ -327,6 +327,12 @@ jobs:
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
+          # Restore missing netns/mib.h from upstream if it's not already present
+          if [ ! -f common/include/net/netns/mib.h ]; then
+            echo "Restoring netns/mib.h from upstream..."
+            mkdir -p common/include/net/netns
+            cp -f upstream-linux/include/net/netns/mib.h common/include/net/netns/mib.h
+          fi
           set -euxo pipefail
           mkdir -p out
           start_time=$(date +%s)
