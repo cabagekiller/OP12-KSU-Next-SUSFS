@@ -428,12 +428,6 @@ jobs:
           sed -i 's/#if CONFIG_FUNCTION_ALIGNMENT > 0/#if defined(CONFIG_FUNCTION_ALIGNMENT) \&\& CONFIG_FUNCTION_ALIGNMENT > 0/' common/include/linux/compiler_types.h
           sed -i 's/(CONFIG_FUNCTION_ALIGNMENT == 0)/(defined(CONFIG_FUNCTION_ALIGNMENT) \&\& CONFIG_FUNCTION_ALIGNMENT == 0)/' common/include/linux/compiler_types.h
           echo "✅ Patch applied"
-      - name: 🧩 Ensure CONFIG_FUNCTION_ALIGNMENT is defined in environment
-        run: |
-          echo "CONFIG_FUNCTION_ALIGNMENT=0" >> common/out/.config
-          chmod 444 common/out/.config
-        env:
-          KCONFIG_CONFIG: common/out/.config
       - name: 🔒 Restore and lock .config before Bazel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         env:
