@@ -338,39 +338,55 @@ jobs:
           echo "🔧 Replacing 'ln -fsn' with conditional safe version"
           sed -i 's|ln -fsn.*source|test "$(realpath source 2>/dev/null)" != "$(realpath .)" \&\& ln -fsn $(srctree) source|' Makefile
           echo "✅ Makefile patch complete"
+      - name: 🩹 Patch compiler_types.h to avoid CONFIG_FUNCTION_ALIGNMENT errors
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          echo "🔧 Patching compiler_types.h"
+          sed -i 's/#if CONFIG_FUNCTION_ALIGNMENT > 0/#if defined(CONFIG_FUNCTION_ALIGNMENT) \&\& CONFIG_FUNCTION_ALIGNMENT > 0/' common/include/linux/compiler_types.h
+          sed -i 's/(CONFIG_FUNCTION_ALIGNMENT == 0)/(defined(CONFIG_FUNCTION_ALIGNMENT) \&\& CONFIG_FUNCTION_ALIGNMENT == 0)/' common/include/linux/compiler_types.h
+          echo "✅ Patch applied"
 
-      - name: 🧹 Clean source & patch CONFIG_FUNCTION_ALIGNMENT
+      - name: ⚙️ Generate and patch kernel config
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
-
-          echo "📦 Generating config from defconfig"
+          echo "📦 Running defconfig"
           make -C common O=out ARCH=arm64 ${DEFCONFIG:-defconfig}
-          
-          # 🧹 Remove symlink to avoid Bazel infinite loop
-          rm -f common/out/source
-          
-          # Locate actual config file path
-          CONFIG_PATH=$(find common -name ".config" | head -n1)
-          echo "🔍 Located config at $CONFIG_PATH"
-          
-          echo "🛠 Disabling CONFIG_PGO_CLANG manually to avoid missing kernel/pgo/"
+      
+          echo "📁 Ensuring .config exists"
+          CONFIG_PATH=common/out/.config
+          mkdir -p common/out
+          touch "$CONFIG_PATH"
+      
+          echo "🛠 Disabling CONFIG_PGO_CLANG"
           sed -i '/^CONFIG_PGO_CLANG/d' "$CONFIG_PATH" || true
           echo "CONFIG_PGO_CLANG=n" >> "$CONFIG_PATH"
-          
-          echo "🛠 Checking for CONFIG_FUNCTION_ALIGNMENT in $CONFIG_PATH"
-          if grep -q "^CONFIG_FUNCTION_ALIGNMENT=" "$CONFIG_PATH"; then
-            echo "✅ Already set"
-          else
-            echo "🔧 Adding CONFIG_FUNCTION_ALIGNMENT=0"
-            echo "CONFIG_FUNCTION_ALIGNMENT=0" >> "$CONFIG_PATH"
+      
+          echo "🔧 Ensuring CONFIG_FUNCTION_ALIGNMENT=0"
+          if ! grep -q '^CONFIG_FUNCTION_ALIGNMENT=' "$CONFIG_PATH"; then
+            echo 'CONFIG_FUNCTION_ALIGNMENT=0' >> "$CONFIG_PATH"
           fi
-          
-          echo "📦 Finalizing config with olddefconfig"
+      
+          echo "📦 Finalizing config"
           make -C common O=out ARCH=arm64 olddefconfig
-
-          echo "🔒 Locking config file to prevent changes"
-          chmod 444 "$CONFIG_PATH"
+      
+          echo "💾 Backing up locked config"
+          cp "$CONFIG_PATH" "$CONFIG_PATH.locked"
+      - name: 🩹 Patch compiler_types.h for missing config guard
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          echo "🔧 Patching compiler_types.h"
+          sed -i 's/#if CONFIG_FUNCTION_ALIGNMENT > 0/#if defined(CONFIG_FUNCTION_ALIGNMENT) \&\& CONFIG_FUNCTION_ALIGNMENT > 0/' common/include/linux/compiler_types.h
+          sed -i 's/(CONFIG_FUNCTION_ALIGNMENT == 0)/(defined(CONFIG_FUNCTION_ALIGNMENT) \&\& CONFIG_FUNCTION_ALIGNMENT == 0)/' common/include/linux/compiler_types.h
+          echo "✅ Patch applied"
+      - name: 🔒 Restore and lock .config before Bazel
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        env:
+          KCONFIG_CONFIG: common/out/.config
+        run: |
+          echo "🔁 Restoring locked config"
+          cp common/out/.config.locked common/out/.config
+          chmod 444 common/out/.config
       - name: 🧩 Patch Kleaf to prevent source- symlink
         working-directory: ${{ env.BUILD_DIR }}/kernel_platform/oneplus12_v/kernel_platform
         run: |
@@ -421,6 +437,8 @@ jobs:
 
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        env:
+            KCONFIG_CONFIG: common/out/.config
         run: |
           set -euxo pipefail
           ls -l common/include/net/netns/mib.h
