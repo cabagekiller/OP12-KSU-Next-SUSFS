@@ -385,6 +385,12 @@ jobs:
           else
             echo "⚠️ No WORKSPACE file found to patch."
           fi
+      - name: 🩹 Patch kernel_env.bzl to prevent source- symlink
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          echo "🔧 Disabling creation of 'out/source-' symlink in kernel_env.bzl"
+          sed -i '/ctx\.actions\.symlink/ s/^/# 🚫 disabled: /' build/kernel/kleaf/impl/kernel_env.bzl
+          echo "✅ Patched kernel_env.bzl"
 
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
