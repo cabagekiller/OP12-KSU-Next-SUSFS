@@ -376,6 +376,8 @@ jobs:
           mkdir -p out
           start_time=$(date +%s)
           export PATH="/usr/lib/ccache:$PATH"
+           # 🧹 Kill symlink loop before Bazel sees it
+          find common/out -type l -lname '../' -name source -exec rm -f {} +
           ./build_with_bazel.py \
           -t pineapple gki \
           --jobs="$(nproc --all)" \
