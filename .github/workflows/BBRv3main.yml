@@ -391,6 +391,17 @@ jobs:
           echo "🔧 Disabling creation of 'out/source-' symlink in kernel_env.bzl"
           sed -i '/ctx\.actions\.symlink/ s/^/# 🚫 disabled: /' build/kernel/kleaf/impl/kernel_env.bzl
           echo "✅ Patched kernel_env.bzl"
+      - name: 🧹 Remove infinite loop symlinks before Bazel
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          echo "🔍 Removing common/out/source and source-"
+          rm -f common/out/source common/out/source-
+      
+          # Optional: Block recreation
+          touch common/out/source common/out/source-
+          chmod 000 common/out/source common/out/source-
+
+          echo "✅ Symlinks removed and blocked"
 
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
