@@ -341,6 +341,9 @@ jobs:
           echo "📦 Generating config from defconfig"
           make -C common O=out ARCH=arm64 ${DEFCONFIG:-defconfig}
           
+          # 🧹 Remove symlink to avoid Bazel infinite loop
+          rm -f common/out/source
+          
           # Locate actual config file path
           CONFIG_PATH=$(find common -name ".config" | head -n1)
           echo "🔍 Located config at $CONFIG_PATH"
