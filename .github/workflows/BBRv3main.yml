@@ -338,14 +338,15 @@ jobs:
         run: |
           set -euxo pipefail
 
-          CONFIG_PATH="out/.config"  # correct location after defconfig
-          
           echo "📦 Generating config from defconfig"
           make -C common O=out ARCH=arm64 ${DEFCONFIG:-defconfig}
           
+          # Locate actual config file path
+          CONFIG_PATH=$(find common -name ".config" | head -n1)
+          echo "🔍 Located config at $CONFIG_PATH"
+          
           echo "🛠 Disabling CONFIG_PGO_CLANG manually to avoid missing kernel/pgo/"
-          # Use sed since scripts/config isn't available
-          sed -i '/^CONFIG_PGO_CLANG/d' "$CONFIG_PATH"
+          sed -i '/^CONFIG_PGO_CLANG/d' "$CONFIG_PATH" || true
           echo "CONFIG_PGO_CLANG=n" >> "$CONFIG_PATH"
           
           echo "🛠 Checking for CONFIG_FUNCTION_ALIGNMENT in $CONFIG_PATH"
@@ -357,9 +358,8 @@ jobs:
           fi
           
           echo "📦 Finalizing config with olddefconfig"
-          # Run 'mrproper' just on the output dir to avoid global kernel/pgo errors
-          make -C common O=out ARCH=arm64 mrproper || true
           make -C common O=out ARCH=arm64 olddefconfig
+
 
 
 
