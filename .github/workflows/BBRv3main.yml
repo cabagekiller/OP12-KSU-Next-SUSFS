@@ -338,13 +338,16 @@ jobs:
         run: |
           set -euxo pipefail
           CONFIG_PATH="common/.config"
-      
-          echo "🧼 Cleaning source tree (safe clean only)"
-          make -C common O=out ARCH=arm64 clean || true
-      
+          
+          # echo "🧼 Cleaning source tree (safe clean only)"
+          # Skipping clean step to avoid kernel/pgo/ error
+          
           echo "📦 Generating config from defconfig"
           make -C common O=out ARCH=arm64 ${DEFCONFIG:-defconfig}
-      
+          
+          echo "🛠 Disabling CONFIG_PGO_CLANG to avoid missing kernel/pgo/"
+          scripts/config --file "$CONFIG_PATH" --disable CONFIG_PGO_CLANG || true
+          
           echo "🛠 Checking for CONFIG_FUNCTION_ALIGNMENT in $CONFIG_PATH"
           if grep -q "^CONFIG_FUNCTION_ALIGNMENT=" "$CONFIG_PATH"; then
             echo "✅ Already set"
@@ -352,9 +355,10 @@ jobs:
             echo "🔧 Adding CONFIG_FUNCTION_ALIGNMENT=0"
             echo "CONFIG_FUNCTION_ALIGNMENT=0" >> "$CONFIG_PATH"
           fi
-      
+          
           echo "📦 Finalizing config with olddefconfig"
           make -C common O=out ARCH=arm64 olddefconfig
+
 
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
