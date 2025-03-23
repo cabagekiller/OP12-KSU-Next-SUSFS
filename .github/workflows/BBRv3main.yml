@@ -434,6 +434,20 @@ jobs:
           chmod 444 common/out/.config
         env:
           KCONFIG_CONFIG: common/out/.config
+      - name: 🔒 Restore and lock .config before Bazel
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        env:
+          KCONFIG_CONFIG: common/out/.config
+        run: |
+          echo "📁 Ensuring config file exists"
+          mkdir -p common/out
+          touch common/out/.config
+      
+          echo "🔧 Injecting CONFIG_FUNCTION_ALIGNMENT=0"
+          grep -q '^CONFIG_FUNCTION_ALIGNMENT=' common/out/.config || echo 'CONFIG_FUNCTION_ALIGNMENT=0' >> common/out/.config
+      
+          echo "🔐 Locking config"
+          chmod 444 common/out/.config
 
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
