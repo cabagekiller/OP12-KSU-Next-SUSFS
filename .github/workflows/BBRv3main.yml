@@ -235,6 +235,10 @@ jobs:
           echo "✅ Copied all uapi headers from upstream Linux include/uapi/linux"
           mkdir -p common/include/net/netns
           cp upstream-linux/include/net/netns/mib.h common/include/net/netns/mib.h
+          echo "📂 Copying kernel/pgo files from upstream..."
+          mkdir -p common/kernel/pgo
+          cp upstream-linux/kernel/pgo/* common/kernel/pgo/
+          echo "✅ Copied kernel/pgo to common/kernel/pgo"
           echo "🧹 Cleaning up..."
           rm -rf upstream-linux
           echo "🎉 Header restoration complete!"
