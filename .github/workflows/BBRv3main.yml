@@ -362,10 +362,11 @@ jobs:
           
           echo "📦 Finalizing config with olddefconfig"
           make -C common O=out ARCH=arm64 olddefconfig
-
-
-
-
+      - name: 🧩 Patch Kleaf to prevent source- symlink
+        working-directory: ${{ env.BUILD_DIR }}/kernel_platform/oneplus12_v/kernel_platform
+        run: |
+          echo "🔧 Disabling out/source- symlink to prevent infinite loop"
+          sed -i 's/ctx\.actions\.symlink/# ctx.actions.symlink/' build/kernel/kleaf/impl/kernel_env.bzl
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
