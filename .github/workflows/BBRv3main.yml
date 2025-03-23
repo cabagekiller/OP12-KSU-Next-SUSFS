@@ -235,13 +235,24 @@ jobs:
           echo "✅ Copied all uapi headers from upstream Linux include/uapi/linux"
           mkdir -p common/include/net/netns
           cp upstream-linux/include/net/netns/mib.h common/include/net/netns/mib.h
-          echo "📂 Copying kernel/pgo files from upstream..."
-          mkdir -p common/kernel/pgo
-          cp upstream-linux/kernel/pgo/* common/kernel/pgo/
-          echo "✅ Copied kernel/pgo to common/kernel/pgo"
           echo "🧹 Cleaning up..."
           rm -rf upstream-linux
           echo "🎉 Header restoration complete!"
+      - name: ♻️ Restore kernel/pgo from Android common kernel
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          set -euxo pipefail
+          echo "📥 Cloning Android kernel common tree (android14-6.1)..."
+          git clone --depth=1 --branch android14-6.1 https://android.googlesource.com/kernel/common android-kernel
+      
+          echo "📂 Copying kernel/pgo..."
+          mkdir -p common/kernel/pgo
+          cp -r android-kernel/kernel/pgo/* common/kernel/pgo/
+      
+          echo "🧹 Cleaning up..."
+          rm -rf android-kernel
+          echo "✅ kernel/pgo restored successfully."
+
 
       - name: ⚙️ Integrate BBRv3 into kernel source
         shell: bash
