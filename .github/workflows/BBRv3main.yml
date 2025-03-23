@@ -405,6 +405,19 @@ jobs:
       
           echo "✅ source- is now harmless"
 
+      - name: 🩹 Patch compiler_types.h to guard CONFIG_FUNCTION_ALIGNMENT
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          echo "🔧 Patching compiler_types.h for missing CONFIG_FUNCTION_ALIGNMENT"
+          sed -i 's/#if CONFIG_FUNCTION_ALIGNMENT > 0/#if defined(CONFIG_FUNCTION_ALIGNMENT) \&\& CONFIG_FUNCTION_ALIGNMENT > 0/' common/include/linux/compiler_types.h
+          sed -i 's/(CONFIG_FUNCTION_ALIGNMENT == 0)/(defined(CONFIG_FUNCTION_ALIGNMENT) \&\& CONFIG_FUNCTION_ALIGNMENT == 0)/' common/include/linux/compiler_types.h
+          echo "✅ Patch applied"
+      - name: 🧩 Ensure CONFIG_FUNCTION_ALIGNMENT is defined in environment
+        run: |
+          echo "CONFIG_FUNCTION_ALIGNMENT=0" >> common/out/.config
+          chmod 444 common/out/.config
+        env:
+          KCONFIG_CONFIG: common/out/.config
 
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
