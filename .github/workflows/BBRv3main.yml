@@ -368,6 +368,9 @@ jobs:
           
           echo "📦 Finalizing config with olddefconfig"
           make -C common O=out ARCH=arm64 olddefconfig
+
+          echo "🔒 Locking config file to prevent changes"
+          chmod 444 "$CONFIG_PATH"
       - name: 🧩 Patch Kleaf to prevent source- symlink
         working-directory: ${{ env.BUILD_DIR }}/kernel_platform/oneplus12_v/kernel_platform
         run: |
