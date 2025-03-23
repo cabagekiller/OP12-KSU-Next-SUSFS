@@ -378,6 +378,11 @@ jobs:
           export PATH="/usr/lib/ccache:$PATH"
            # 🧹 Kill symlink loop before Bazel sees it
           find common/out -type l -lname '../' -name source -exec rm -f {} +
+          echo "🛡️ Blocking recreation with dummy file"
+          touch common/out/source
+          chmod 000 common/out/source
+          echo "🧼 Cleaning Bazel cache"
+          bazel clean --expunge
           ./build_with_bazel.py \
           -t pineapple gki \
           --jobs="$(nproc --all)" \
