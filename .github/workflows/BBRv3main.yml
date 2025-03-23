@@ -367,6 +367,19 @@ jobs:
         run: |
           echo "🔧 Disabling out/source- symlink to prevent infinite loop"
           sed -i 's/ctx\.actions\.symlink/# ctx.actions.symlink/' build/kernel/kleaf/impl/kernel_env.bzl
+      - name: 🔧 Patch kernel build system (remove symlink & disable kernel_toolchain_info)
+        working-directory: ${{ env.BUILD_DIR }}/kernel_platform/oneplus12_v/kernel_platform
+        run: |
+          echo "🧹 Removing problematic symlink: common/out/source-"
+          rm -f common/out/source-
+      
+          if [ -f WORKSPACE ]; then
+            echo "🛠 Disabling kernel_toolchain_info local_repository in WORKSPACE"
+            sed -i '/local_repository.*kernel_toolchain_info/,/)/ s/^/# 🔒 disabled: /' WORKSPACE
+          else
+            echo "⚠️ No WORKSPACE file found to patch."
+          fi
+
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
@@ -378,11 +391,11 @@ jobs:
           start_time=$(date +%s)
           export PATH="/usr/lib/ccache:$PATH"
            # 🧹 Kill symlink loop before Bazel sees it
-          find common/out -type l -lname '../' -name source -exec rm -f {} +
-          echo "🛡️ Blocking recreation with dummy file"
-          touch common/out/source
-          chmod 000 common/out/source
-          echo "🧼 Cleaning Bazel cache"
+          #find common/out -type l -lname '../' -name source -exec rm -f {} +
+          #echo "🛡️ Blocking recreation with dummy file"
+          #touch common/out/source
+          #chmod 000 common/out/source
+          #echo "🧼 Cleaning Bazel cache"
           ./tools/bazel clean --expunge
           ./build_with_bazel.py \
           -t pineapple gki \
