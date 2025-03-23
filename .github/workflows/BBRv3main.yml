@@ -382,7 +382,7 @@ jobs:
           touch common/out/source
           chmod 000 common/out/source
           echo "🧼 Cleaning Bazel cache"
-          bazel clean --expunge
+          ./tools/bazel clean --expunge
           ./build_with_bazel.py \
           -t pineapple gki \
           --jobs="$(nproc --all)" \
