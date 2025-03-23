@@ -246,14 +246,16 @@ jobs:
           git clone --depth=1 --branch android14-6.1 https://android.googlesource.com/kernel/common android-kernel
       
           echo "📂 Copying kernel/pgo..."
-          mkdir -p common/kernel/pgo
-          cp -r android-kernel/kernel/pgo/* common/kernel/pgo/
+          if [ -d android-kernel/kernel/pgo ]; then
+            mkdir -p common/kernel/pgo
+            cp -r android-kernel/kernel/pgo/* common/kernel/pgo/
+            echo "✅ kernel/pgo restored successfully."
+          else
+            echo "⚠️  kernel/pgo not found in android14-6.1 — skipping copy."
+          fi
       
           echo "🧹 Cleaning up..."
           rm -rf android-kernel
-          echo "✅ kernel/pgo restored successfully."
-
-
       - name: ⚙️ Integrate BBRv3 into kernel source
         shell: bash
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
