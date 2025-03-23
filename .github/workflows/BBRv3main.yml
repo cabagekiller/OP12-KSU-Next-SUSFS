@@ -332,6 +332,19 @@ jobs:
             mkdir -p "$EXECROOT/__main__/common/include/net/netns"
             cp "$TARGET_HEADER_PATH" "$EXECROOT/__main__/common/include/net/netns/mib.h"
           fi
+      - name: 🩹 Patch common/Makefile to avoid source symlink Bazel loop
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common
+        run: |
+          echo "🔧 Patching Makefile to prevent recursive symlink creation (source → .)"
+      
+          sed -i '/ln -fsn .*source/ i \
+          \t@if [ "$$(readlink source 2>/dev/null)" != "$$(realpath .)" ]; then \\
+          ' Makefile
+      
+          sed -i '/ln -fsn .*source/ a \
+          \tfi' Makefile
+
+          echo "✅ Makefile patched to skip unsafe symlink"
 
       - name: 🧹 Clean source & patch CONFIG_FUNCTION_ALIGNMENT
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
