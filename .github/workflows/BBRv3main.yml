@@ -322,8 +322,13 @@ jobs:
           set -euxo pipefail
           CONFIG_PATH="common/.config"
       
-          echo "🛠 Checking for CONFIG_FUNCTION_ALIGNMENT in $CONFIG_PATH"
+          echo "🛠 Preparing source tree..."
+          make -C common O=out ARCH=arm64 mrproper
       
+          echo "📦 Re-generating clean config..."
+          make -C common O=out ARCH=arm64 ${DEFCONFIG:-defconfig}
+      
+          echo "🛠 Checking for CONFIG_FUNCTION_ALIGNMENT in $CONFIG_PATH"
           if grep -q "^CONFIG_FUNCTION_ALIGNMENT=" "$CONFIG_PATH"; then
             echo "✅ CONFIG_FUNCTION_ALIGNMENT already set"
           else
@@ -331,8 +336,9 @@ jobs:
             echo "CONFIG_FUNCTION_ALIGNMENT=0" >> "$CONFIG_PATH"
           fi
       
-          echo "📦 Re-generating kernel config"
-          make -C common O=out ARCH=arm64 olddefconfig         
+          echo "📦 Finalizing config with olddefconfig"
+          make -C common O=out ARCH=arm64 olddefconfig
+       
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
