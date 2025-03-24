@@ -509,7 +509,8 @@ jobs:
             --user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom \
             --ignore_missing_projects \
             -o "$(pwd)/out" \
-            --cflags="-Icommon/include -Icommon/arch/arm64/include" \
+            --copt=-Icommon/include \
+            --copt=-Icommon/arch/arm64/include \
             --//msm-kernel:skip_abi=true \
             --//msm-kernel:skip_abl=true \
             //msm-kernel:pineapple_gki_dist \
