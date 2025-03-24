@@ -469,6 +469,45 @@ jobs:
               else
                 echo "✅ arch_atomic_long_fetch_andnot_release already defined"
               fi
+      - name: 🩹 Backport missing arch_atomic_long_fetch_andnot_release for ARM64
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        shell: bash
+        run: |
+          ATOMIC_HEADER="common/arch/arm64/include/asm/atomic_ll_sc.h"
+
+          if ! grep -q 'arch_atomic_long_fetch_andnot_release' "$ATOMIC_HEADER"; then
+            echo "🔧 Patching $ATOMIC_HEADER with arch_atomic_long_fetch_andnot_release"
+            cat << 'EOF' >> "$ATOMIC_HEADER"
+                #ifndef arch_atomic_long_fetch_andnot_release
+          static inline long arch_atomic_long_fetch_andnot_release(long i, atomic_long_t *v)
+          {
+              long old, new;
+              do {
+                  old = atomic_long_read(v);
+                  new = old & ~i;
+              } while (atomic_long_cmpxchg_release(v, old, new) != old);
+              return old;
+          }
+          #endif
+          EOF
+          else
+            echo "✅ arch_atomic_long_fetch_andnot_release already defined"
+          fi
+
+      - name: Fix Atomic Function Names
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          set -euxo pipefail
+          find common/arch/arm64/include/asm/ -name "*.h" -print0 | xargs -0 sed -i 's/arch_atomic_long_or/raw_atomic_long_or/g'
+          find common/arch/arm64/include/asm/ -name "*.h" -print0 | xargs -0 sed -i 's/arch_atomic_long_andnot/raw_atomic_long_andnot/g'
+          find common/arch/arm64/include/asm/ -name "*.h" -print0 | xargs -0 sed -i 's/arch_atomic_long_xor/raw_atomic_long_xor/g'
+          find common/arch/arm64/include/asm/ -name "*.h" -print0 | xargs -0 sed -i 's/arch_atomic_long_fetch_or/raw_atomic_long_fetch_or/g'
+          find common/arch/arm64/include/asm/ -name "*.h" -print0 | xargs -0 sed -i 's/arch_atomic_long_fetch_andnot/raw_atomic_long_fetch_andnot/g'
+          find common/arch/arm64/include/asm/ -name "*.h" -print0 | xargs -0 sed -i 's/arch_atomic_long_fetch_xor/raw_atomic_long_fetch_xor/g'
+          find common/arch/arm64/include/asm/ -name "*.h" -print0 | xargs -0 sed -i 's/asm_volatile_goto(/asm_volatile_goto(/g'
+          find common/arch/arm64/include/asm/ -name "*.h" -print0 | xargs -0 sed -i 's/:  :  "i"(&((char \\*)key)\\[branch\\]) :  : l_yes);/:  :  "i"(&((char \\*)key)\\[branch\\]) :  : l_yes);)/g'
+          sed -i 's/static atomic_long_read/atomic_long_read/g' common/include/linux/atomic/atomic-instrumented.h
+          sed -i 's/static atomic_long_cmpxchg_release/atomic_long_cmpxchg_release/g' common/include/linux/atomic/atomic-instrumented.h
 
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
