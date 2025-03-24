@@ -443,7 +443,50 @@ jobs:
           echo "🔐 Locking config"
           chmod 444 common/out/.config
       # ✅ After source sync, KernelSU/SUSFS/BBRv3 patching, etc.
+      - name: 🩹 Patch fallback for asm_volatile_goto
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        shell: bash
+        run: |
+          COMPILER_TYPES_HEADER="common/include/linux/compiler_types.h"
+      
+          if ! grep -q 'asm_volatile_goto' "$COMPILER_TYPES_HEADER"; then
+            echo "🔧 Adding fallback macro for asm_volatile_goto"
+            cat << 'EOF' >> "$COMPILER_TYPES_HEADER"
+      
+          #ifndef asm_volatile_goto
+          #define asm_volatile_goto(...) asm volatile(__VA_ARGS__)
+          #endif
+          EOF
+              else
+                echo "✅ asm_volatile_goto already defined"
+              fi
 
+      - name: 🩹 Patch asm_volatile_goto fallback for jump label
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          JUMP_LABEL_HEADER="common/arch/arm64/include/asm/jump_label.h"
+          if ! grep -q 'asm_volatile_goto' "$JUMP_LABEL_HEADER"; then
+            echo "🔧 Adding fallback for asm_volatile_goto"
+            cat << 'EOF' >> "$JUMP_LABEL_HEADER"
+      
+          #ifndef asm_volatile_goto
+          #define asm_volatile_goto(...) asm volatile(__VA_ARGS__)
+          #endif
+          EOF
+              else
+                echo "✅ asm_volatile_goto already defined"
+              fi
+
+      - name: 🩹 Include atomic-long.h for atomic_long_t support
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          ATOMIC_HEADER="common/arch/arm64/include/asm/atomic_ll_sc.h"
+          if ! grep -q 'atomic-long.h' "$ATOMIC_HEADER"; then
+            echo "🔧 Inserting include for atomic-long.h"
+            sed -i '1i#include <linux/atomic/atomic-long.h>' "$ATOMIC_HEADER"
+          else
+            echo "✅ atomic-long.h already included"
+          fi
       - name: 🩹 Backport missing arch_atomic_long_fetch_andnot_release for ARM64
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         shell: bash
