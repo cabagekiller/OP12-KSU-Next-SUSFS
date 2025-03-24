@@ -468,7 +468,32 @@ jobs:
           else
             echo "✅ arch_atomic_long_fetch_andnot_release already defined"
           fi
+      - name: 🩹 Backport arch_atomic_long_fetch_xor for ARM64
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        shell: bash
+        run: |
+          ATOMIC_HEADER="common/arch/arm64/include/asm/atomic_ll_sc.h"
       
+          if ! grep -q 'arch_atomic_long_fetch_xor' "$ATOMIC_HEADER"; then
+            echo "🔧 Patching $ATOMIC_HEADER with arch_atomic_long_fetch_xor"
+            cat << 'EOF' >> "$ATOMIC_HEADER"
+      
+          #ifndef arch_atomic_long_fetch_xor
+          static inline long arch_atomic_long_fetch_xor(long i, atomic_long_t *v)
+          {
+              long old, new;
+              do {
+                  old = atomic_long_read(v);
+                  new = old ^ i;
+              } while (atomic_long_cmpxchg(v, old, new) != old);
+              return old;
+          }
+          #endif
+          EOF
+              else
+                echo "✅ arch_atomic_long_fetch_xor already defined"
+              fi
+
       - name: Fix Atomic Function Names
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
