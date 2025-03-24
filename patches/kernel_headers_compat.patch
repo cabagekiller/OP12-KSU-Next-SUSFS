@@ -119,3 +119,67 @@ diff --git a/common/arch/arm64/include/asm/atomic_ll_sc.h b/common/arch/arm64/in
 +#ifndef raw_atomic64_fetch_add_relaxed
 +#define raw_atomic64_fetch_add_relaxed(i, v) atomic64_fetch_add_relaxed(i, v)
 +#endif
+
+diff --git a/common/arch/arm64/include/asm/atomic_ll_sc.h b/common/arch/arm64/include/asm/atomic_ll_sc.h
+@@
++#ifndef raw_atomic64_add_return_release
++#define raw_atomic64_add_return_release(i, v) atomic64_add_return_release(i, v)
++#endif
++
++#ifndef raw_atomic64_add_return_relaxed
++#define raw_atomic64_add_return_relaxed(i, v) atomic64_add_return_relaxed(i, v)
++#endif
++
++#ifndef raw_atomic64_fetch_add
++#define raw_atomic64_fetch_add(i, v) atomic64_fetch_add(i, v)
++#endif
+
+diff --git a/common/arch/arm64/include/asm/atomic_ll_sc.h b/common/arch/arm64/include/asm/atomic_ll_sc.h
+@@
++#ifndef raw_atomic64_add_return_acquire
++#define raw_atomic64_add_return_acquire(i, v) atomic64_add_return_acquire(i, v)
++#endif
++
++#ifndef raw_atomic64_sub
++#define raw_atomic64_sub(i, v) atomic64_sub(i, v)
++#endif
++
++#ifndef raw_atomic64_sub_return
++#define raw_atomic64_sub_return(i, v) atomic64_sub_return(i, v)
++#endif
++
++#ifndef raw_atomic64_sub_return_acquire
++#define raw_atomic64_sub_return_acquire(i, v) atomic64_sub_return_acquire(i, v)
++#endif
++
++#ifndef raw_atomic64_sub_return_release
++#define raw_atomic64_sub_return_release(i, v) atomic64_sub_return_release(i, v)
++#endif
++
++#ifndef raw_atomic64_sub_return_relaxed
++#define raw_atomic64_sub_return_relaxed(i, v) atomic64_sub_return_relaxed(i, v)
++#endif
+
+
+diff --git a/common/arch/arm64/include/asm/atomic_ll_sc.h b/common/arch/arm64/include/asm/atomic_ll_sc.h
+index 0000000..ffffff0 100644
+--- a/common/arch/arm64/include/asm/atomic_ll_sc.h
++++ b/common/arch/arm64/include/asm/atomic_ll_sc.h
+@@ -1,4 +1,14 @@
+ /* SPDX-License-Identifier: GPL-2.0 */
++/* Fallback atomic64 macros added for BBRv3 support */
++#ifndef raw_atomic64_read
++#define raw_atomic64_read(v) atomic64_read(v)
++#endif
++
++#ifndef raw_atomic64_read_acquire
++#define raw_atomic64_read_acquire(v) atomic64_read_acquire(v)
++#endif
++
++#ifndef raw_atomic64_set
++#define raw_atomic64_set(v, i) atomic64_set(v, i)
++#endif
++
++#ifndef raw_atomic64_set_release
++#define raw_atomic64_set_release(v, i) atomic64_set_release(v, i)
++#endif
