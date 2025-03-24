@@ -453,47 +453,22 @@ jobs:
           if ! grep -q 'arch_atomic_long_fetch_andnot_release' "$ATOMIC_HEADER"; then
             echo "🔧 Patching $ATOMIC_HEADER with arch_atomic_long_fetch_andnot_release"
             cat << 'EOF' >> "$ATOMIC_HEADER"
-      
-          #ifndef arch_atomic_long_fetch_andnot_release
-          static inline long arch_atomic_long_fetch_andnot_release(long i, atomic_long_t *v)
-          {
-              long old, new;
-              do {
-                  old = atomic_long_read(v);
-                  new = old & ~i;
-              } while (atomic_long_cmpxchg_release(v, old, new) != old);
-              return old;
-          }
-          #endif
-          EOF
-              else
-                echo "✅ arch_atomic_long_fetch_andnot_release already defined"
-              fi
-      - name: 🩹 Backport missing arch_atomic_long_fetch_andnot_release for ARM64
-        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
-        shell: bash
-        run: |
-          ATOMIC_HEADER="common/arch/arm64/include/asm/atomic_ll_sc.h"
-
-          if ! grep -q 'arch_atomic_long_fetch_andnot_release' "$ATOMIC_HEADER"; then
-            echo "🔧 Patching $ATOMIC_HEADER with arch_atomic_long_fetch_andnot_release"
-            cat << 'EOF' >> "$ATOMIC_HEADER"
                 #ifndef arch_atomic_long_fetch_andnot_release
           static inline long arch_atomic_long_fetch_andnot_release(long i, atomic_long_t *v)
           {
-              long old, new;
-              do {
-                  old = atomic_long_read(v);
-                  new = old & ~i;
-              } while (atomic_long_cmpxchg_release(v, old, new) != old);
-              return old;
+            long old, new;
+            do {
+              old = atomic_long_read(v);
+              new = old & ~i;
+            } while (atomic_long_cmpxchg_release(v, old, new) != old);
+            return old;
           }
           #endif
           EOF
           else
             echo "✅ arch_atomic_long_fetch_andnot_release already defined"
           fi
-
+      
       - name: Fix Atomic Function Names
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
@@ -508,11 +483,11 @@ jobs:
           find common/arch/arm64/include/asm/ -name "*.h" -print0 | xargs -0 sed -i 's/:  :  "i"(&((char \\*)key)\\[branch\\]) :  : l_yes);/:  :  "i"(&((char \\*)key)\\[branch\\]) :  : l_yes);)/g'
           sed -i 's/static atomic_long_read/atomic_long_read/g' common/include/linux/atomic/atomic-instrumented.h
           sed -i 's/static atomic_long_cmpxchg_release/atomic_long_cmpxchg_release/g' common/include/linux/atomic/atomic-instrumented.h
-
+      
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         env:
-            KCONFIG_CONFIG: common/out/.config
+          KCONFIG_CONFIG: common/out/.config
         run: |
           set -euxo pipefail
           ls -l common/include/net/netns/mib.h
@@ -521,23 +496,27 @@ jobs:
           mkdir -p out
           start_time=$(date +%s)
           export PATH="/usr/lib/ccache:$PATH"
-           # 🧹 Kill symlink loop before Bazel sees it
+          # 🧹 Kill symlink loop before Bazel sees it
           #find common/out -type l -lname '../' -name source -exec rm -f {} +
           #echo "🛡️ Blocking recreation with dummy file"
           #touch common/out/source
           #chmod 000 common/out/source
           #echo "🧼 Cleaning Bazel cache"
           ./tools/bazel clean --expunge
+      
+          # Add include paths here (modify this line)
           ./build_with_bazel.py \
-          -t pineapple gki \
-          --jobs="$(nproc --all)" \
-          --verbose_failures \
-          --sandbox_debug \
-          --subcommands \
-          --config=stamp \
-          --user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom \
-          --ignore_missing_projects \
-          -o "$(pwd)/out"
+            -t pineapple gki \
+            --jobs="$(nproc --all)" \
+            --verbose_failures \
+            --sandbox_debug \
+            --subcommands \
+            --config=stamp \
+            --user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom \
+            --ignore_missing_projects \
+            -o "$(pwd)/out" \
+            --cflags="-I common/include -I common/arch/arm64/include" # Add this --cflags parameter
+      
           end_time=$(date +%s)
           build_time=$((end_time - start_time))
           echo "Kernel build time: $build_time seconds"
