@@ -496,15 +496,9 @@ jobs:
           mkdir -p out
           start_time=$(date +%s)
           export PATH="/usr/lib/ccache:$PATH"
-          # 🧹 Kill symlink loop before Bazel sees it
-          #find common/out -type l -lname '../' -name source -exec rm -f {} +
-          #echo "🛡️ Blocking recreation with dummy file"
-          #touch common/out/source
-          #chmod 000 common/out/source
-          #echo "🧼 Cleaning Bazel cache"
           ./tools/bazel clean --expunge
       
-          # Add include paths here (modify this line)
+          # Corrected --cflags and removed duplicate flags
           ./build_with_bazel.py \
             -t pineapple gki \
             --jobs="$(nproc --all)" \
@@ -515,7 +509,11 @@ jobs:
             --user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom \
             --ignore_missing_projects \
             -o "$(pwd)/out" \
-            --cflags="-I common/include -I common/arch/arm64/include" # Add this --cflags parameter
+            --cflags="-Icommon/include -Icommon/arch/arm64/include" \
+            --//msm-kernel:skip_abi=true \
+            --//msm-kernel:skip_abl=true \
+            //msm-kernel:pineapple_gki_dist \
+            //msm-kernel:pineapple_gki_dtc_dist
       
           end_time=$(date +%s)
           build_time=$((end_time - start_time))
