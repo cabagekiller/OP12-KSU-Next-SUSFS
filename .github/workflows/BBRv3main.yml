@@ -416,15 +416,15 @@ jobs:
               else
                 echo "✅ Atomic fallback bundle already present"
               fi
-      - name: 🩹 Inject raw_atomic64_* and asm_volatile_goto fallbacks
+      - name: 🧩 Inject full raw_atomic64_* & atomic_long BBRv3 fallbacks
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
-
-          echo "📄 Patching atomic_ll_sc.h with raw_atomic64_* and atomic_long fallbacks..."
-          ATOMIC_LL_SC="common/arch/arm64/include/asm/atomic_ll_sc.h"
       
-          cat << 'EOF' >> "$ATOMIC_LL_SC"
+          HEADER="common/arch/arm64/include/asm/atomic_ll_sc.h"
+          echo "📦 Injecting missing raw_atomic64 and atomic_long macros into $HEADER"
+      
+          cat << 'EOF' >> "$HEADER"
       
           #ifndef raw_atomic64_read
           #define raw_atomic64_read(v) atomic64_read(v)
@@ -440,22 +440,6 @@ jobs:
           
           #ifndef raw_atomic64_set_release
           #define raw_atomic64_set_release(v, i) atomic64_set_release(v, i)
-          #endif
-          
-          #ifndef raw_atomic64_fetch_add
-          #define raw_atomic64_fetch_add(i, v) atomic64_fetch_add(i, v)
-          #endif
-          
-          #ifndef raw_atomic64_fetch_add_acquire
-          #define raw_atomic64_fetch_add_acquire(i, v) atomic64_fetch_add_acquire(i, v)
-          #endif
-          
-          #ifndef raw_atomic64_fetch_add_release
-          #define raw_atomic64_fetch_add_release(i, v) atomic64_fetch_add_release(i, v)
-          #endif
-          
-          #ifndef raw_atomic64_fetch_add_relaxed
-          #define raw_atomic64_fetch_add_relaxed(i, v) atomic64_fetch_add_relaxed(i, v)
           #endif
           
           #ifndef raw_atomic64_add_return_acquire
@@ -490,8 +474,36 @@ jobs:
           #define raw_atomic64_sub_return_relaxed(i, v) atomic64_sub_return_relaxed(i, v)
           #endif
           
+          #ifndef raw_atomic64_fetch_add
+          #define raw_atomic64_fetch_add(i, v) atomic64_fetch_add(i, v)
+          #endif
+          
+          #ifndef raw_atomic64_fetch_add_acquire
+          #define raw_atomic64_fetch_add_acquire(i, v) atomic64_fetch_add_acquire(i, v)
+          #endif
+          
+          #ifndef raw_atomic64_fetch_add_release
+          #define raw_atomic64_fetch_add_release(i, v) atomic64_fetch_add_release(i, v)
+          #endif
+          
+          #ifndef raw_atomic64_fetch_add_relaxed
+          #define raw_atomic64_fetch_add_relaxed(i, v) atomic64_fetch_add_relaxed(i, v)
+          #endif
+          
           #ifndef raw_atomic64_fetch_sub
           #define raw_atomic64_fetch_sub(i, v) atomic64_fetch_sub(i, v)
+          #endif
+          
+          #ifndef raw_atomic64_fetch_sub_acquire
+          #define raw_atomic64_fetch_sub_acquire(i, v) atomic64_fetch_sub_acquire(i, v)
+          #endif
+          
+          #ifndef raw_atomic64_fetch_sub_release
+          #define raw_atomic64_fetch_sub_release(i, v) atomic64_fetch_sub_release(i, v)
+          #endif
+          
+          #ifndef raw_atomic64_fetch_sub_relaxed
+          #define raw_atomic64_fetch_sub_relaxed(i, v) atomic64_fetch_sub_relaxed(i, v)
           #endif
           
           #include <linux/atomic/atomic-long.h>
@@ -540,17 +552,15 @@ jobs:
           }
           #endif
           EOF
-          
-              echo "📄 Patching compiler_types.h with asm_volatile_goto fallback..."
-              COMPILER_TYPES="common/include/linux/compiler_types.h"
-              grep -q "asm_volatile_goto" "$COMPILER_TYPES" || cat << 'EOF' >> "$COMPILER_TYPES"
-          
-          #ifndef asm_volatile_goto
-          #define asm_volatile_goto(...) asm volatile(__VA_ARGS__)
-          #endif
-          EOF
       
-
+          echo "📦 Patching compiler_types.h for asm_volatile_goto fallback..."
+          COMPILER_TYPES="common/include/linux/compiler_types.h"
+          grep -q 'asm_volatile_goto' "$COMPILER_TYPES" || cat << 'EOF' >> "$COMPILER_TYPES"
+      
+      #ifndef asm_volatile_goto
+      #define asm_volatile_goto(...) asm volatile(__VA_ARGS__)
+      #endif
+      EOF
 
       - name: ⚙️ Generate and patch kernel config
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
