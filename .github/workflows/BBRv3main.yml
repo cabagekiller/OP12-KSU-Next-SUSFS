@@ -345,6 +345,77 @@ jobs:
           sed -i 's/#if CONFIG_FUNCTION_ALIGNMENT > 0/#if defined(CONFIG_FUNCTION_ALIGNMENT) \&\& CONFIG_FUNCTION_ALIGNMENT > 0/' common/include/linux/compiler_types.h
           sed -i 's/(CONFIG_FUNCTION_ALIGNMENT == 0)/(defined(CONFIG_FUNCTION_ALIGNMENT) \&\& CONFIG_FUNCTION_ALIGNMENT == 0)/' common/include/linux/compiler_types.h
           echo "✅ Patch applied"
+      - name: 🩹 Patch missing atomic long ops for ARM64
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        shell: bash
+        run: |
+          PATCH_FILE="common/arch/arm64/include/asm/atomic_ll_sc.h"
+          MARKER="_ARM64_PATCHED_ATOMIC_LL_SC_FALLBACKS_H"
+      
+          if ! grep -q "$MARKER" "$PATCH_FILE"; then
+            echo "🔧 Appending atomic long fallback bundle to $PATCH_FILE"
+            cat << 'EOF' >> "$PATCH_FILE"
+          #include <linux/atomic/atomic-long.h>
+          
+          #ifndef raw_atomic64_read
+          #define raw_atomic64_read(v) atomic64_read(v)
+          #endif
+          
+          #ifndef raw_atomic64_read_acquire
+          #define raw_atomic64_read_acquire(v) atomic64_read_acquire(v)
+          #endif
+          
+          #ifndef arch_atomic_long_fetch_andnot_release
+          static inline long arch_atomic_long_fetch_andnot_release(long i, atomic_long_t *v)
+          {
+              long old, new;
+              do {
+                  old = atomic_long_read(v);
+                  new = old & ~i;
+              } while (atomic_long_cmpxchg_release(v, old, new) != old);
+              return old;
+          }
+          #endif
+          
+          #ifndef arch_atomic_long_fetch_xor
+          static inline long arch_atomic_long_fetch_xor(long i, atomic_long_t *v)
+          {
+              long old, new;
+              do {
+                  old = atomic_long_read(v);
+                  new = old ^ i;
+              } while (atomic_long_cmpxchg(v, old, new) != old);
+              return old;
+          }
+          #endif
+          
+          #ifndef arch_atomic_long_fetch_or
+          static inline long arch_atomic_long_fetch_or(long i, atomic_long_t *v)
+          {
+              long old, new;
+              do {
+                  old = atomic_long_read(v);
+                  new = old | i;
+              } while (atomic_long_cmpxchg(v, old, new) != old);
+              return old;
+          }
+          #endif
+          
+          #ifndef arch_atomic_long_fetch_and
+          static inline long arch_atomic_long_fetch_and(long i, atomic_long_t *v)
+          {
+              long old, new;
+              do {
+                  old = atomic_long_read(v);
+                  new = old & i;
+              } while (atomic_long_cmpxchg(v, old, new) != old);
+              return old;
+          }
+          #endif
+          EOF
+              else
+                echo "✅ Atomic fallback bundle already present"
+              fi
 
       - name: ⚙️ Generate and patch kernel config
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
