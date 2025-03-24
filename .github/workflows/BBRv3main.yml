@@ -386,7 +386,7 @@ jobs:
         run: |
           echo "🔁 Restoring locked config"
           cp common/out/.config.locked common/out/.config
-          chmod 444 common/out/.config
+          #chmod 444 common/out/.config
       - name: 🧩 Patch Kleaf to prevent source- symlink
         working-directory: ${{ env.BUILD_DIR }}/kernel_platform/oneplus12_v/kernel_platform
         run: |
