@@ -442,6 +442,33 @@ jobs:
       
           echo "🔐 Locking config"
           chmod 444 common/out/.config
+      # ✅ After source sync, KernelSU/SUSFS/BBRv3 patching, etc.
+
+      - name: 🩹 Backport missing arch_atomic_long_fetch_andnot_release for ARM64
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        shell: bash
+        run: |
+          ATOMIC_HEADER="common/arch/arm64/include/asm/atomic_ll_sc.h"
+      
+          if ! grep -q 'arch_atomic_long_fetch_andnot_release' "$ATOMIC_HEADER"; then
+            echo "🔧 Patching $ATOMIC_HEADER with arch_atomic_long_fetch_andnot_release"
+            cat << 'EOF' >> "$ATOMIC_HEADER"
+      
+          #ifndef arch_atomic_long_fetch_andnot_release
+          static inline long arch_atomic_long_fetch_andnot_release(long i, atomic_long_t *v)
+          {
+              long old, new;
+              do {
+                  old = atomic_long_read(v);
+                  new = old & ~i;
+              } while (atomic_long_cmpxchg_release(v, old, new) != old);
+              return old;
+          }
+          #endif
+          EOF
+              else
+                echo "✅ arch_atomic_long_fetch_andnot_release already defined"
+              fi
 
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
