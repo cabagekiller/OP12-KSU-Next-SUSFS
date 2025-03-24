@@ -184,5 +184,3 @@ index 0000000..ffffff0 100644
 +#ifndef raw_atomic64_set_release
 +#define raw_atomic64_set_release(v, i) atomic64_set_release(v, i)
 +#endif
-
-
