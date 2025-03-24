@@ -557,10 +557,10 @@ jobs:
           COMPILER_TYPES="common/include/linux/compiler_types.h"
           grep -q 'asm_volatile_goto' "$COMPILER_TYPES" || cat << 'EOF' >> "$COMPILER_TYPES"
       
-      #ifndef asm_volatile_goto
-      #define asm_volatile_goto(...) asm volatile(__VA_ARGS__)
-      #endif
-      EOF
+          #ifndef asm_volatile_goto
+          #define asm_volatile_goto(...) asm volatile(__VA_ARGS__)
+          #endif
+          EOF
 
       - name: ⚙️ Generate and patch kernel config
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
