@@ -165,8 +165,9 @@ diff --git a/common/arch/arm64/include/asm/atomic_ll_sc.h b/common/arch/arm64/in
 index 0000000..ffffff0 100644
 --- a/common/arch/arm64/include/asm/atomic_ll_sc.h
 +++ b/common/arch/arm64/include/asm/atomic_ll_sc.h
-@@ -1,4 +1,14 @@
+@@ -1,4 +1,18 @@
  /* SPDX-License-Identifier: GPL-2.0 */
++
 +/* Fallback atomic64 macros added for BBRv3 support */
 +#ifndef raw_atomic64_read
 +#define raw_atomic64_read(v) atomic64_read(v)
@@ -183,3 +184,6 @@ index 0000000..ffffff0 100644
 +#ifndef raw_atomic64_set_release
 +#define raw_atomic64_set_release(v, i) atomic64_set_release(v, i)
 +#endif
+
+
+
