@@ -1,0 +1,74 @@
+diff --git a/common/arch/arm64/include/asm/atomic_ll_sc.h b/common/arch/arm64/include/asm/atomic_ll_sc.h
+index 0000000..1111111 100644
+--- a/common/arch/arm64/include/asm/atomic_ll_sc.h
++++ b/common/arch/arm64/include/asm/atomic_ll_sc.h
+@@
++/* BEGIN PATCH: Atomic long and raw fallbacks for BBRv3 */
++#include <linux/atomic/atomic-long.h>
++
++#ifndef raw_atomic64_read
++#define raw_atomic64_read(v) atomic64_read(v)
++#endif
++
++#ifndef raw_atomic64_read_acquire
++#define raw_atomic64_read_acquire(v) atomic64_read_acquire(v)
++#endif
++
++#ifndef arch_atomic_long_fetch_andnot_release
++static inline long arch_atomic_long_fetch_andnot_release(long i, atomic_long_t *v)
++{
++    long old, new;
++    do {
++        old = atomic_long_read(v);
++        new = old & ~i;
++    } while (atomic_long_cmpxchg_release(v, old, new) != old);
++    return old;
++}
++#endif
++
++#ifndef arch_atomic_long_fetch_xor
++static inline long arch_atomic_long_fetch_xor(long i, atomic_long_t *v)
++{
++    long old, new;
++    do {
++        old = atomic_long_read(v);
++        new = old ^ i;
++    } while (atomic_long_cmpxchg(v, old, new) != old);
++    return old;
++}
++#endif
++
++#ifndef arch_atomic_long_fetch_or
++static inline long arch_atomic_long_fetch_or(long i, atomic_long_t *v)
++{
++    long old, new;
++    do {
++        old = atomic_long_read(v);
++        new = old | i;
++    } while (atomic_long_cmpxchg(v, old, new) != old);
++    return old;
++}
++#endif
++
++#ifndef arch_atomic_long_fetch_and
++static inline long arch_atomic_long_fetch_and(long i, atomic_long_t *v)
++{
++    long old, new;
++    do {
++        old = atomic_long_read(v);
++        new = old & i;
++    } while (atomic_long_cmpxchg(v, old, new) != old);
++    return old;
++}
++#endif
++/* END PATCH */
+diff --git a/common/include/linux/compiler_types.h b/common/include/linux/compiler_types.h
+index 0000000..2222222 100644
+--- a/common/include/linux/compiler_types.h
++++ b/common/include/linux/compiler_types.h
+@@
++/* BEGIN PATCH: asm_volatile_goto fallback */
++#ifndef asm_volatile_goto
++#define asm_volatile_goto(...) asm volatile(__VA_ARGS__)
++#endif
++/* END PATCH */
