@@ -416,12 +416,13 @@ jobs:
               else
                 echo "✅ Atomic fallback bundle already present"
               fi
-      - name: 📌 Apply kernel header compatibility patch
+      - name: 🩹 Apply kernel header compatibility patch
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
-          echo "🩹 Applying fix_missing_kernel_headers.patch..."
-          patch -p1 < $GITHUB_WORKSPACE/patches/kernel_headers_compat.patch
+          echo "🩹 Applying kernel_headers_compat.patch..."
+          patch -p1 --no-backup-if-mismatch --forward < $GITHUB_WORKSPACE/patches/kernel_headers_compat.patch
+
 
       - name: ⚙️ Generate and patch kernel config
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
