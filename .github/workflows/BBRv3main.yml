@@ -2878,7 +2878,7 @@ jobs:
           fi
       
           echo "✅ Atomic operations and compiler definitions fixed"
-      - name: Fix Kernel Headers and Atomics (Debugging Version)
+      - name: Fix Kernel Headers and Atomics
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
@@ -2893,19 +2893,13 @@ jobs:
             COMPILER_FILE="common/include/linux/compiler.h"
           fi
 
-          cat << \EOF >> "$COMPILER_FILE"
+          cat << EOF >> "$COMPILER_FILE"
           /* User-space compilation workarounds */
 
-          // Prevent redefinition of __always_inline by stddef.h.
-          // Define it *conditionally* to 'inline'.
-          #ifndef __always_inline
-          #define __always_inline inline
-          #endif
-
-          // Define our custom ALWAYS_INLINE macro.
-          #ifndef ALWAYS_INLINE
+          // Define our custom ALWAYS_INLINE macro.  This is what we
+          // will *actually* use throughout our code.  We do NOT
+          // attempt to redefine __always_inline.
           #define ALWAYS_INLINE inline __attribute__((__always_inline__))
-          #endif
 
           #ifndef __user
           #define __user
