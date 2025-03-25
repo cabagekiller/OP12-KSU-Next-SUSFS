@@ -2878,7 +2878,7 @@ jobs:
           fi
       
           echo "✅ Atomic operations and compiler definitions fixed"
-      - name: Fix Kernel Headers and Atomics
+      - name: Fix Kernel Headers and Atomics (Debugging Version)
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
@@ -2893,8 +2893,14 @@ jobs:
             COMPILER_FILE="common/include/linux/compiler.h"
           fi
 
-          cat << EOF >> "$COMPILER_FILE"
+          cat << \EOF >> "$COMPILER_FILE"
           /* User-space compilation workarounds */
+
+          // Prevent redefinition of __always_inline by stddef.h.
+          // Define it *conditionally* to 'inline'.
+          #ifndef __always_inline
+          #define __always_inline inline
+          #endif
 
           // Define our custom ALWAYS_INLINE macro.
           #ifndef ALWAYS_INLINE
@@ -3165,7 +3171,9 @@ jobs:
           find common/include/net/netns/ -name "mib.h"
           mkdir -p out
           start_time=$(date +%s)
-          export PATH="/usr/lib/ccache:$PATH"
+          # --- CRITICAL: Disable ccache temporarily ---
+          # export PATH="/usr/lib/ccache:$PATH"  # Comment this out
+          export CCACHE_DISABLE=1
           ./tools/bazel clean --expunge
       
           # Corrected --cflags and removed duplicate flags
