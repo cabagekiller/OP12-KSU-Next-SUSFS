@@ -2883,25 +2883,32 @@ jobs:
         run: |
           set -euxo pipefail
 
-          # 1. Fix fortify-string.h function prototype *CORRECTLY*
+          # 1. Fix fortify-string.h function prototype
           FORTIFY_FILE="common/include/linux/fortify-string.h"
           sed -i 's/void abort();/void abort(void);/' "$FORTIFY_FILE"
 
-          # 2. Handle __always_inline and other compiler attributes *ROBUSTLY*.
+          # 2.  PREVENT __always_inline redefinition.  Define it to
+          #     something harmless *BEFORE* stddef.h is included.
+          #     This is the most robust solution.
           COMPILER_FILE="common/include/linux/compiler_attributes.h"
           if [ ! -f "$COMPILER_FILE" ]; then
             COMPILER_FILE="common/include/linux/compiler.h"
           fi
 
-          # Use a here-document with proper escaping
           cat << \EOF >> "$COMPILER_FILE"
           /* User-space compilation workarounds */
 
-          // Forcefully override any previous definition of __always_inline
-          #ifdef __always_inline
-          #  undef __always_inline  
+          // Prevent redefinition of __always_inline. Define to 'inline' first.
+          #ifndef __always_inline
+          #define __always_inline inline
           #endif
+
+          // Now, *safely* define __always_inline (and other macros)
+          #ifndef __ALWAYS_INLINE__ // Use a DIFFERENT guard macro
+          #define __ALWAYS_INLINE__  // Mark that we've done this
+          #undef __always_inline      // Remove the temporary definition
           #define __always_inline inline __attribute__((__always_inline__))
+          #endif
 
           #ifndef __user
           #define __user
@@ -2966,7 +2973,7 @@ jobs:
           FTRACE_FILE="common/include/linux/compiler.h"
           [ -f "$FTRACE_FILE" ] && sed -i 's/struct ftrace_likely_data \*f/void \*f/' "$FTRACE_FILE"
 
-          # 3. Create atomic-long.h with direct include of atomic-raw64-compat.h
+          # 3. Create atomic-long.h with direct include
           mkdir -p common/include/linux/atomic
           cat << EOF > common/include/linux/atomic/atomic-long.h
           #ifndef _LINUX_ATOMIC_LONG_H
