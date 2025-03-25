@@ -2887,9 +2887,7 @@ jobs:
           FORTIFY_FILE="common/include/linux/fortify-string.h"
           sed -i 's/void abort();/void abort(void);/' "$FORTIFY_FILE"
 
-          # 2.  PREVENT __always_inline redefinition.  Define it to
-          #     something harmless *BEFORE* stddef.h is included.
-          #     This is the most robust solution.
+          # 2. Define ALWAYS_INLINE (our custom macro) and other workarounds.
           COMPILER_FILE="common/include/linux/compiler_attributes.h"
           if [ ! -f "$COMPILER_FILE" ]; then
             COMPILER_FILE="common/include/linux/compiler.h"
@@ -2898,16 +2896,9 @@ jobs:
           cat << \EOF >> "$COMPILER_FILE"
           /* User-space compilation workarounds */
 
-          // Prevent redefinition of __always_inline. Define to 'inline' first.
-          #ifndef __always_inline
-          #define __always_inline inline
-          #endif
-
-          // Now, *safely* define __always_inline (and other macros)
-          #ifndef __ALWAYS_INLINE__ // Use a DIFFERENT guard macro
-          #define __ALWAYS_INLINE__  // Mark that we've done this
-          #undef __always_inline      // Remove the temporary definition
-          #define __always_inline inline __attribute__((__always_inline__))
+          // Define our own ALWAYS_INLINE macro to avoid conflicts.
+          #ifndef ALWAYS_INLINE
+          #define ALWAYS_INLINE inline __attribute__((__always_inline__))
           #endif
 
           #ifndef __user
@@ -2965,7 +2956,8 @@ jobs:
           #define fortify_panic(func, write, avail, size, p) abort()
           #endif
           EOF
-            # Fix init.h empty macro
+
+          # Fix init.h empty macro
           INIT_FILE="common/include/linux/init.h"
           [ -f "$INIT_FILE" ] && sed -i '/^#define $/d' "$INIT_FILE"
 
@@ -2973,7 +2965,7 @@ jobs:
           FTRACE_FILE="common/include/linux/compiler.h"
           [ -f "$FTRACE_FILE" ] && sed -i 's/struct ftrace_likely_data \*f/void \*f/' "$FTRACE_FILE"
 
-          # 3. Create atomic-long.h with direct include
+          # 3. Create atomic-long.h (using ALWAYS_INLINE)
           mkdir -p common/include/linux/atomic
           cat << EOF > common/include/linux/atomic/atomic-long.h
           #ifndef _LINUX_ATOMIC_LONG_H
@@ -2982,7 +2974,6 @@ jobs:
           #include <linux/compiler.h>
           #include <linux/types.h>
           #include <asm-generic/atomic-long.h>
-          // Include atomic-raw64-compat.h *directly* here.
           #include <linux/atomic/atomic-raw64-compat.h>
 
           #ifdef CONFIG_64BIT
@@ -2993,6 +2984,7 @@ jobs:
           #define ATOMIC_LONG_INIT(i)        ATOMIC_INIT(i)
           #endif
 
+            // Use ALWAYS_INLINE (our custom macro)
             static inline long raw_atomic_long_read(const atomic_long_t *v)
             {
                 return raw_atomic64_read(v);
@@ -3007,35 +2999,36 @@ jobs:
             {
                 raw_atomic64_add(i,v);
             }
-            static inline long raw_atomic_long_add_return(long i, atomic_long_t *v)
+
+            static ALWAYS_INLINE long raw_atomic_long_add_return(long i, atomic_long_t *v)
             {
                 return raw_atomic64_add_return(i,v);
             }
-             static inline long raw_atomic_long_add_return_acquire(long i, atomic_long_t *v)
+             static ALWAYS_INLINE long raw_atomic_long_add_return_acquire(long i, atomic_long_t *v)
             {
                 return raw_atomic64_add_return_acquire(i,v);
             }
-             static inline long raw_atomic_long_add_return_release(long i, atomic_long_t *v)
+             static ALWAYS_INLINE long raw_atomic_long_add_return_release(long i, atomic_long_t *v)
             {
                 return raw_atomic64_add_return_release(i,v);
             }
-             static inline long raw_atomic_long_add_return_relaxed(long i, atomic_long_t *v)
+             static ALWAYS_INLINE long raw_atomic_long_add_return_relaxed(long i, atomic_long_t *v)
             {
                 return raw_atomic64_add_return_relaxed(i,v);
             }
-            static inline long raw_atomic_long_fetch_add(long i, atomic_long_t *v)
+            static ALWAYS_INLINE long raw_atomic_long_fetch_add(long i, atomic_long_t *v)
             {
                 return raw_atomic64_fetch_add(i,v);
             }
-            static inline long raw_atomic_long_fetch_add_acquire(long i, atomic_long_t *v)
+            static ALWAYS_INLINE long raw_atomic_long_fetch_add_acquire(long i, atomic_long_t *v)
             {
                 return raw_atomic64_fetch_add_acquire(i,v);
             }
-            static inline long raw_atomic_long_fetch_add_release(long i, atomic_long_t *v)
+            static ALWAYS_INLINE long raw_atomic_long_fetch_add_release(long i, atomic_long_t *v)
             {
                 return raw_atomic64_fetch_add_release(i,v);
             }
-             static inline long raw_atomic_long_fetch_add_relaxed(long i, atomic_long_t *v)
+             static ALWAYS_INLINE long raw_atomic_long_fetch_add_relaxed(long i, atomic_long_t *v)
             {
                 return raw_atomic64_fetch_add_relaxed(i,v);
             }
@@ -3043,35 +3036,35 @@ jobs:
             {
                 raw_atomic64_sub(i,v);
             }
-            static inline long raw_atomic_long_sub_return(long i, atomic_long_t *v)
+            static ALWAYS_INLINE long raw_atomic_long_sub_return(long i, atomic_long_t *v)
             {
                return  raw_atomic64_sub_return(i,v);
             }
-             static inline long raw_atomic_long_sub_return_acquire(long i, atomic_long_t *v)
+             static ALWAYS_INLINE long raw_atomic_long_sub_return_acquire(long i, atomic_long_t *v)
             {
                return  raw_atomic64_sub_return_acquire(i,v);
             }
-             static inline long raw_atomic_long_sub_return_release(long i, atomic_long_t *v)
+             static ALWAYS_INLINE long raw_atomic_long_sub_return_release(long i, atomic_long_t *v)
             {
                return raw_atomic64_sub_return_release(i,v);
             }
-             static inline long raw_atomic_long_sub_return_relaxed(long i, atomic_long_t *v)
+             static ALWAYS_INLINE long raw_atomic_long_sub_return_relaxed(long i, atomic_long_t *v)
             {
                 return raw_atomic64_sub_return_relaxed(i,v);
             }
-            static inline long raw_atomic_long_fetch_sub(long i, atomic_long_t *v)
+            static ALWAYS_INLINE long raw_atomic_long_fetch_sub(long i, atomic_long_t *v)
             {
                 return raw_atomic64_fetch_sub(i,v);
             }
-             static inline long raw_atomic_long_fetch_sub_acquire(long i, atomic_long_t *v)
+             static ALWAYS_INLINE long raw_atomic_long_fetch_sub_acquire(long i, atomic_long_t *v)
             {
                 return raw_atomic64_fetch_sub_acquire(i,v);
             }
-            static inline long raw_atomic_long_fetch_sub_release(long i, atomic_long_t *v)
+            static ALWAYS_INLINE long raw_atomic_long_fetch_sub_release(long i, atomic_long_t *v)
             {
                 return raw_atomic64_fetch_sub_release(i,v);
             }
-            static inline long raw_atomic_long_fetch_sub_relaxed(long i, atomic_long_t *v)
+            static ALWAYS_INLINE long raw_atomic_long_fetch_sub_relaxed(long i, atomic_long_t *v)
             {
                return raw_atomic64_fetch_sub_relaxed(i,v);
             }
@@ -3079,53 +3072,53 @@ jobs:
             {
                 raw_atomic64_inc(v);
             }
-            static inline long raw_atomic_long_inc_return(atomic_long_t *v){
+            static ALWAYS_INLINE long raw_atomic_long_inc_return(atomic_long_t *v){
                 return raw_atomic64_inc_return(v);
             }
-            static inline long raw_atomic_long_fetch_inc(atomic_long_t *v){
+            static ALWAYS_INLINE long raw_atomic_long_fetch_inc(atomic_long_t *v){
                return raw_atomic64_fetch_inc(v);
             }
             static inline void raw_atomic_long_dec(atomic_long_t *v)
             {
               raw_atomic64_dec(v);
             }
-            static inline long raw_atomic_long_dec_return(atomic_long_t *v){
+            static ALWAYS_INLINE long raw_atomic_long_dec_return(atomic_long_t *v){
                 return raw_atomic64_dec_return(v);
             }
-            static inline long raw_atomic_long_fetch_dec(atomic_long_t *v){
+            static ALWAYS_INLINE long raw_atomic_long_fetch_dec(atomic_long_t *v){
                 return raw_atomic64_fetch_dec(v);
             }
             static inline void raw_atomic_long_and(long i, atomic_long_t *v){
                 raw_atomic64_and(i,v);
             }
-            static inline long raw_atomic_long_fetch_and(long i, atomic_long_t *v){
+            static ALWAYS_INLINE long raw_atomic_long_fetch_and(long i, atomic_long_t *v){
                return raw_atomic64_fetch_and(i,v);
             }
             static inline void raw_atomic_long_andnot(long i, atomic_long_t *v){
                 raw_atomic64_andnot(i,v);
             }
-             static inline long raw_atomic_long_fetch_andnot(long i, atomic_long_t *v){
+             static ALWAYS_INLINE long raw_atomic_long_fetch_andnot(long i, atomic_long_t *v){
                return  raw_atomic64_fetch_andnot(i,v);
             }
             static inline void raw_atomic_long_or(long i, atomic_long_t *v){
                 raw_atomic64_or(i,v);
             }
-            static inline long raw_atomic_long_fetch_or(long i, atomic_long_t *v){
+            static ALWAYS_INLINE long raw_atomic_long_fetch_or(long i, atomic_long_t *v){
                 return raw_atomic64_fetch_or(i,v);
             }
             static inline void raw_atomic_long_xor(long i, atomic_long_t *v){
                 raw_atomic64_xor(i,v);
             }
-            static inline long raw_atomic_long_fetch_xor(long i, atomic_long_t *v){
+            static ALWAYS_INLINE long raw_atomic_long_fetch_xor(long i, atomic_long_t *v){
                return raw_atomic64_fetch_xor(i,v);
             }
-            static inline long raw_atomic_long_xchg(atomic_long_t *v, long new){
+            static ALWAYS_INLINE long raw_atomic_long_xchg(atomic_long_t *v, long new){
              return raw_atomic64_xchg(v,new);
             }
-            static inline long raw_atomic_long_cmpxchg(atomic_long_t *v, long old, long new){
+            static ALWAYS_INLINE long raw_atomic_long_cmpxchg(atomic_long_t *v, long old, long new){
              return raw_atomic64_cmpxchg(v,old,new);
             }
-            static inline bool raw_atomic_long_try_cmpxchg(atomic_long_t *v, long *old, long new){
+            static ALWAYS_INLINE bool raw_atomic_long_try_cmpxchg(atomic_long_t *v, long *old, long new){
             return  raw_atomic64_try_cmpxchg(v,old,new);
             }
             static inline bool raw_atomic_long_sub_and_test(long i, atomic_long_t *v){
