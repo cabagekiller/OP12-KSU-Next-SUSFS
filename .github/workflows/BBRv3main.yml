@@ -2884,25 +2884,25 @@ jobs:
           set -euxo pipefail
 
           # 1. Fix fortify-string.h function prototype *CORRECTLY*
-          #    The previous sed command was too broad.  This one is precise.
           FORTIFY_FILE="common/include/linux/fortify-string.h"
           sed -i 's/void abort();/void abort(void);/' "$FORTIFY_FILE"
 
-          # 2.  Handle __always_inline and other compiler attributes *CORRECTLY*.
-          #     Instead of trying to modify stddef.h (which can be tricky due to
-          #     include order and multiple definitions), we'll define
-          #     __always_inline and other workarounds *only* if they are NOT
-          #     already defined. This is much safer.
+          # 2. Handle __always_inline and other compiler attributes *ROBUSTLY*.
           COMPILER_FILE="common/include/linux/compiler_attributes.h"
           if [ ! -f "$COMPILER_FILE" ]; then
             COMPILER_FILE="common/include/linux/compiler.h"
           fi
 
+          # Use a here-document with proper escaping
           cat << \EOF >> "$COMPILER_FILE"
           /* User-space compilation workarounds */
-          #ifndef __always_inline
-          #define __always_inline inline __attribute__((__always_inline__))
+
+          // Forcefully override any previous definition of __always_inline
+          #ifdef __always_inline
+          #  undef __always_inline  
           #endif
+          #define __always_inline inline __attribute__((__always_inline__))
+
           #ifndef __user
           #define __user
           #endif
@@ -2965,6 +2965,7 @@ jobs:
           # Fix ftrace likely data declaration
           FTRACE_FILE="common/include/linux/compiler.h"
           [ -f "$FTRACE_FILE" ] && sed -i 's/struct ftrace_likely_data \*f/void \*f/' "$FTRACE_FILE"
+
           # 3. Create atomic-long.h with direct include of atomic-raw64-compat.h
           mkdir -p common/include/linux/atomic
           cat << EOF > common/include/linux/atomic/atomic-long.h
