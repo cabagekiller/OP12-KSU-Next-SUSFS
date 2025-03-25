@@ -2898,9 +2898,6 @@ jobs:
           // Define our custom ALWAYS_INLINE macro.  This is what we
           // will *actually* use throughout our code.  We do NOT
           // attempt to redefine __always_inline.
-          #ifndef ALWAYS_INLINE
-          #define ALWAYS_INLINE inline __attribute__((__always_inline__))
-          #endif
 
           #ifndef __user
           #define __user
@@ -3155,6 +3152,16 @@ jobs:
           EOF
 
           echo "✅ Fixed kernel header compilation issues and created atomic-long.h"
+
+      - name: Patch compiler_attributes.h to avoid macro redefinition
+        run: |
+         COMP_ATTR_FILE="common/include/linux/compiler_attributes.h"
+         echo "Guarding __always_inline macro..."
+         sed -i 's@^#define __always_inline inline __attribute__((__always_inline__))@#ifndef __always_inline\
+         #define __always_inline inline __attribute__((__always_inline__))\
+         #endif@' "$COMP_ATTR_FILE"
+         echo "Done."
+
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         env:
