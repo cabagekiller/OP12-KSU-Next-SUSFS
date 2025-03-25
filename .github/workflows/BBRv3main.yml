@@ -663,6 +663,56 @@ jobs:
           sed -i 's/} __user \*cap_user_header_t;/};\ntypedef struct __user_cap_header_struct *cap_user_header_t;/' "$CAPABILITY_FILE"
           sed -i 's/typedef struct __user_cap_data_struct __user \*cap_user_data_t;/typedef struct __user_cap_data_struct *cap_user_data_t;/' "$CAPABILITY_FILE"
           echo "✅ Fixed capability.h typedef syntax"
+      - name: 🛠️ Comprehensive kernel headers patch
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          # Create compiler attributes patch
+          COMPILER_FILE="common/include/linux/compiler_attributes.h"
+          if [ ! -f "$COMPILER_FILE" ]; then
+            COMPILER_FILE="common/include/linux/compiler.h"
+          fi
+      
+          # Add all necessary definitions
+          cat << 'EOF' >> "$COMPILER_FILE"
+      
+          /* User-space compilation workarounds */
+          #ifndef __user
+          #define __user
+          #endif
+          #ifndef __kernel
+          #define __kernel
+          #endif
+          #ifndef __force
+          #define __force
+          #endif
+          #ifndef __must_check
+          #define __must_check
+          #endif
+          #ifndef __no_sanitize_or_inline
+          #define __no_sanitize_or_inline inline
+          #endif
+          #ifndef __no_kasan_or_inline
+          #define __no_kasan_or_inline inline
+          #endif
+          #ifndef __realloc_size
+          #define __realloc_size(x, ...)
+          #endif
+          #ifndef __unqual_scalar_typeof
+          #define __unqual_scalar_typeof(x) typeof(x)
+          #endif
+          #ifndef __counted_by
+          #define __counted_by(x)
+          #endif
+          EOF
+      
+          # Fix specific files
+          RWONCE_FILE="common/include/asm-generic/rwonce.h"
+          [ -f "$RWONCE_FILE" ] && sed -i 's/__no_[a-z_]*_inline/inline/g' "$RWONCE_FILE"
+      
+          ERR_FILE="common/include/linux/err.h"
+          [ -f "$ERR_FILE" ] && sed -i 's/__force //g' "$ERR_FILE"
+      
+          echo "✅ Applied comprehensive kernel headers patch"
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         env:
