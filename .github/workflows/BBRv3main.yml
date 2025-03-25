@@ -1060,6 +1060,34 @@ jobs:
           #define __always_inline inline
           #endif
           EOF
+      - name: 🛠️ Fix kernel header compilation issues
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          # 1. Fix __always_inline macro conflict
+          # Remove the simpler definition from stddef.h
+          sed -i '/^#define __always_inline inline$/d' "common/include/uapi/linux/stddef.h"
+          
+          # 2. Fix fortify-string.h function prototype
+          FORTIFY_FILE="common/include/linux/fortify-string.h"
+          sed -i 's/void abort();/void abort(void);/' "$FORTIFY_FILE"
+          sed -i 's/__fortify_panic(/abort(); \/\* __fortify_panic(/' "$FORTIFY_FILE"
+          
+          # 3. Add comprehensive compiler workarounds
+          COMPILER_FILE="common/include/linux/compiler_attributes.h"
+          [ -f "$COMPILER_FILE" ] || COMPILER_FILE="common/include/linux/compiler.h"
+          
+          cat << 'EOF' >> "$COMPILER_FILE"
+          
+          /* User-space compilation workarounds */
+          #ifndef __always_inline
+          #define __always_inline inline __attribute__((__always_inline__))
+          #endif
+          #ifndef __fortify_panic
+          #define __fortify_panic(reason, avail, size) abort()
+          #endif
+          EOF
+          
+          echo "✅ Fixed kernel header compilation issues"
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         env:
