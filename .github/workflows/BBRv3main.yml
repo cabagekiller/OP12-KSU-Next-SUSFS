@@ -713,6 +713,98 @@ jobs:
           [ -f "$ERR_FILE" ] && sed -i 's/__force //g' "$ERR_FILE"
       
           echo "✅ Applied comprehensive kernel headers patch"
+      - name: 🛠️ Patch kernel headers for user-space compilation
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          # Create a comprehensive compiler attributes patch
+          COMPILER_FILE="common/include/linux/compiler_attributes.h"
+          if [ ! -f "$COMPILER_FILE" ]; then
+            COMPILER_FILE="common/include/linux/compiler.h"
+          fi
+      
+          # Add all necessary definitions
+          cat << 'EOF' >> "$COMPILER_FILE"
+      
+          /* User-space compilation workarounds */
+          #ifndef __user
+          #define __user
+          #endif
+          #ifndef __kernel
+          #define __kernel
+          #endif
+          #ifndef __force
+          #define __force
+          #endif
+          #ifndef __must_check
+          #define __must_check
+          #endif
+          #ifndef __cold
+          #define __cold
+          #endif
+          #ifndef __noreturn
+          #define __noreturn
+          #endif
+          #ifndef __section
+          #define __section(x)
+          #endif
+          #ifndef __latent_entropy
+          #define __latent_entropy
+          #endif
+          #ifndef __noinitretpoline
+          #define __noinitretpoline
+          #endif
+          #ifndef __no_sanitize_or_inline
+          #define __no_sanitize_or_inline inline
+          #endif
+          #ifndef __no_kasan_or_inline
+          #define __no_kasan_or_inline inline
+          #endif
+          #ifndef __realloc_size
+          #define __realloc_size(x, ...)
+          #endif
+          #ifndef __unqual_scalar_typeof
+          #define __unqual_scalar_typeof(x) typeof(x)
+          #endif
+          #ifndef __counted_by
+          #define __counted_by(x)
+          #endif
+          #ifndef __member_size
+          #define __member_size(p) 0
+          #endif
+          #ifndef __fortify_panic
+          #define __fortify_panic(reason, avail, size) abort()
+          #endif
+          #ifndef fortify_panic
+          #define fortify_panic(func, write, avail, size, p) abort()
+          #endif
+          EOF
+      
+          # Fix capability.h typedef
+          CAPABILITY_FILE="common/include/uapi/linux/capability.h"
+          sed -i 's/typedef struct __user_cap_header_struct {/struct __user_cap_header_struct {/' "$CAPABILITY_FILE"
+          sed -i '/struct __user_cap_header_struct {/a typedef struct __user_cap_header_struct *cap_user_header_t;' "$CAPABILITY_FILE"
+          sed -i 's/typedef struct __user_cap_data_struct __user \*cap_user_data_t;/typedef struct __user_cap_data_struct *cap_user_data_t;/' "$CAPABILITY_FILE"
+      
+          # Fix rwonce.h
+          RWONCE_FILE="common/include/asm-generic/rwonce.h"
+          [ -f "$RWONCE_FILE" ] && sed -i 's/__no_[a-z_]*_inline/inline/g' "$RWONCE_FILE"
+      
+          # Fix printk.h
+          PRINTK_FILE="common/include/linux/printk.h"
+          [ -f "$PRINTK_FILE" ] && sed -i 's/__cold//g' "$PRINTK_FILE"
+      
+          # Fix init.h
+          INIT_FILE="common/include/linux/init.h"
+          [ -f "$INIT_FILE" ] && sed -i 's/__cold//g' "$INIT_FILE"
+          [ -f "$INIT_FILE" ] && sed -i 's/__latent_entropy//g' "$INIT_FILE"
+          [ -f "$INIT_FILE" ] && sed -i 's/__noinitretpoline//g' "$INIT_FILE"
+      
+          # Fix fortify-string.h
+          FORTIFY_FILE="common/include/linux/fortify-string.h"
+          [ -f "$FORTIFY_FILE" ] && sed -i 's/__cold//g' "$FORTIFY_FILE"
+          [ -f "$FORTIFY_FILE" ] && sed -i 's/__noreturn//g' "$FORTIFY_FILE"
+      
+          echo "✅ Applied comprehensive kernel headers patch"
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         env:
