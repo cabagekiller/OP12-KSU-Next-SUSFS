@@ -646,7 +646,23 @@ jobs:
       
           echo "📥 Copying atomic_ll_sc fallback..."
           cp "$GITHUB_WORKSPACE/fallback_headers/atomic_ll_sc_fallback.h" "common/arch/arm64/include/asm/atomic_ll_sc.h"
-
+      - name: 🩹 Patch kernel headers for user-space compilation
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          # Add __user macro definition if not present
+          USER_DEF_FILE="common/include/linux/compiler_types.h"
+          if ! grep -q '#define __user' "$USER_DEF_FILE"; then
+            echo -e "\n#ifndef __user\n#define __user\n#endif" >> "$USER_DEF_FILE"
+            echo "✅ Added __user macro definition"
+          else
+            echo "ℹ️ __user macro already defined"
+          fi
+      
+          # Fix capability.h typedefs
+          CAPABILITY_FILE="common/include/uapi/linux/capability.h"
+          sed -i 's/} __user \*cap_user_header_t;/};\ntypedef struct __user_cap_header_struct *cap_user_header_t;/' "$CAPABILITY_FILE"
+          sed -i 's/typedef struct __user_cap_data_struct __user \*cap_user_data_t;/typedef struct __user_cap_data_struct *cap_user_data_t;/' "$CAPABILITY_FILE"
+          echo "✅ Fixed capability.h typedef syntax"
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         env:
