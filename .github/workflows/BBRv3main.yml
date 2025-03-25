@@ -2893,15 +2893,14 @@ jobs:
             COMPILER_FILE="common/include/linux/compiler.h"
           fi
 
-          cat << EOF >> "$COMPILER_FILE"
+          cat << 'EOF' >> "$COMPILER_FILE"
           /* User-space compilation workarounds */
-          // Define our custom ALWAYS_INLINE macro. This is what we
-          // will *actually* use throughout our code. We do NOT
+          // Define our custom ALWAYS_INLINE macro.  This is what we
+          // will *actually* use throughout our code.  We do NOT
           // attempt to redefine __always_inline.
-          #ifndef __always_inline
-          #define __always_inline inline __attribute__((__always_inline__))
+          #ifndef ALWAYS_INLINE
+          #define ALWAYS_INLINE inline __attribute__((__always_inline__))
           #endif
-          #define ALWAYS_INLINE __always_inline
 
           #ifndef __user
           #define __user
