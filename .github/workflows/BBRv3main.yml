@@ -2896,11 +2896,19 @@ jobs:
           cat << \EOF >> "$COMPILER_FILE"
           /* User-space compilation workarounds */
 
-          // Define our own ALWAYS_INLINE macro to avoid conflicts.
+          // Prevent redefinition of __always_inline by stddef.h.
+          // Define it *temporarily* to 'inline'.
+          #ifndef __always_inline
+          #define __always_inline inline
+          #endif
+
+          // Define our custom ALWAYS_INLINE macro.  This is what we'll
+          // *actually* use in our code.
           #ifndef ALWAYS_INLINE
           #define ALWAYS_INLINE inline __attribute__((__always_inline__))
           #endif
 
+          // Other necessary macros...
           #ifndef __user
           #define __user
           #endif
@@ -2956,8 +2964,7 @@ jobs:
           #define fortify_panic(func, write, avail, size, p) abort()
           #endif
           EOF
-
-          # Fix init.h empty macro
+            # Fix init.h empty macro
           INIT_FILE="common/include/linux/init.h"
           [ -f "$INIT_FILE" ] && sed -i '/^#define $/d' "$INIT_FILE"
 
@@ -2999,7 +3006,6 @@ jobs:
             {
                 raw_atomic64_add(i,v);
             }
-
             static ALWAYS_INLINE long raw_atomic_long_add_return(long i, atomic_long_t *v)
             {
                 return raw_atomic64_add_return(i,v);
