@@ -943,6 +943,22 @@ jobs:
           FORTIFY_FILE="common/include/linux/fortify-string.h"
           [ -f "$FORTIFY_FILE" ] && sed -i 's/__fortify_panic(/abort(); \/\/ __fortify_panic(/' "$FORTIFY_FILE"
           [ -f "$FORTIFY_FILE" ] && sed -i 's/__struct_size(p)/sizeof(*p)/g' "$FORTIFY_FILE"
+      - name: 🛠️ Fix capability.h typedef syntax
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          CAPABILITY_FILE="common/include/uapi/linux/capability.h"
+          
+          # Backup original file
+          cp "$CAPABILITY_FILE" "${CAPABILITY_FILE}.orig"
+          
+          # Apply the fix by separating struct definition and typedef
+          sed -i 's/typedef struct __user_cap_header_struct {/struct __user_cap_header_struct {/' "$CAPABILITY_FILE"
+          sed -i '/struct __user_cap_header_struct {/a typedef struct __user_cap_header_struct *cap_user_header_t;' "$CAPABILITY_FILE"
+          
+          # Also fix the cap_user_data_t typedef
+          sed -i 's/typedef struct __user_cap_data_struct __user \*cap_user_data_t;/typedef struct __user_cap_data_struct *cap_user_data_t;/' "$CAPABILITY_FILE"
+          
+          echo "✅ Fixed capability.h typedef syntax"
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         env:
