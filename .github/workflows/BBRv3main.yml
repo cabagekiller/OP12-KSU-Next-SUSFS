@@ -805,6 +805,47 @@ jobs:
           [ -f "$FORTIFY_FILE" ] && sed -i 's/__noreturn//g' "$FORTIFY_FILE"
       
           echo "✅ Applied comprehensive kernel headers patch"
+      - name: 🛠️ Comprehensive capability.h patch
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          CAPABILITY_FILE="common/include/uapi/linux/capability.h"
+          
+          # Backup original file
+          cp "$CAPABILITY_FILE" "${CAPABILITY_FILE}.orig"
+          
+          # Apply comprehensive fix
+          cat << 'EOF' > "$CAPABILITY_FILE"
+          #ifndef _LINUX_CAPABILITY_H
+          #define _LINUX_CAPABILITY_H
+          
+          #include <linux/types.h>
+          
+          struct __user_cap_header_struct {
+              __u32 version;
+              int pid;
+          };
+          typedef struct __user_cap_header_struct *cap_user_header_t;
+          
+          struct __user_cap_data_struct {
+              __u32 effective;
+              __u32 permitted;
+              __u32 inheritable;
+          };
+          typedef struct __user_cap_data_struct *cap_user_data_t;
+          
+          #define _LINUX_CAPABILITY_VERSION_1  0x19980330
+          #define _LINUX_CAPABILITY_U32S_1     1
+          
+          #define _LINUX_CAPABILITY_VERSION_2  0x20071026
+          #define _LINUX_CAPABILITY_U32S_2     2
+          
+          #define _LINUX_CAPABILITY_VERSION_3  0x20080522
+          #define _LINUX_CAPABILITY_U32S_3     2
+          
+          #endif /* _LINUX_CAPABILITY_H */
+          EOF
+          
+          echo "✅ Completely rebuilt capability.h with fixed typedefs"
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         env:
