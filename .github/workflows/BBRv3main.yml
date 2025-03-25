@@ -1088,7 +1088,246 @@ jobs:
           EOF
           
           echo "✅ Fixed kernel header compilation issues"
-
+            - name: Create complete atomic-long.h (with forward declarations)
+              working-directory:  ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+              run: |
+                mkdir -p common/include/linux/atomic
+                cat << 'EOF' > common/include/linux/atomic/atomic-long.h
+                #ifndef _LINUX_ATOMIC_LONG_H
+                #define _LINUX_ATOMIC_LONG_H
+      
+                #include <linux/compiler.h>
+                #include <linux/types.h>
+                #include <asm-generic/atomic-long.h>
+                #include <linux/atomic/atomic-raw64-compat.h>
+      
+                #ifdef CONFIG_64BIT
+                typedef atomic64_t atomic_long_t;
+                #define ATOMIC_LONG_INIT(i)        ATOMIC64_INIT(i)
+                #else
+                typedef atomic_t atomic_long_t;
+                #define ATOMIC_LONG_INIT(i)        ATOMIC_INIT(i)
+                #endif
+      
+                // *** FORWARD DECLARATIONS ***
+                // These tell the compiler that these functions exist, even
+                // though the definitions are in atomic-raw64-compat.h.
+                static inline long raw_atomic64_read(const atomic64_t *v);
+                static inline void raw_atomic64_set(atomic64_t *v, s64 i);
+                static inline void raw_atomic64_add(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_add_return(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_add_return_acquire(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_add_return_release(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_add_return_relaxed(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_fetch_add(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_fetch_add_acquire(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_fetch_add_release(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_fetch_add_relaxed(s64 i, atomic64_t *v);
+                static inline void raw_atomic64_sub(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_sub_return(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_sub_return_acquire(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_sub_return_release(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_sub_return_relaxed(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_fetch_sub(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_fetch_sub_acquire(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_fetch_sub_release(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_fetch_sub_relaxed(s64 i, atomic64_t *v);
+                static inline void raw_atomic64_inc(atomic64_t *v);
+                static inline long raw_atomic64_inc_return(atomic64_t *v);
+                static inline long raw_atomic64_fetch_inc(atomic64_t *v);
+                static inline void raw_atomic64_dec(atomic64_t *v);
+                static inline long raw_atomic64_dec_return(atomic64_t *v);
+                static inline long raw_atomic64_fetch_dec(atomic64_t *v);
+                static inline void raw_atomic64_and(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_fetch_and(s64 i, atomic64_t *v);
+                static inline void raw_atomic64_andnot(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_fetch_andnot(s64 i, atomic64_t *v);
+                static inline void raw_atomic64_or(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_fetch_or(s64 i, atomic64_t *v);
+                static inline void raw_atomic64_xor(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_fetch_xor(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_xchg(atomic64_t *v, s64 new);
+                static inline long raw_atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new);
+                static inline bool raw_atomic64_try_cmpxchg(atomic64_t *v, s64 *old, s64 new);
+                static inline bool raw_atomic64_sub_and_test(s64 i, atomic64_t *v);
+                static inline bool raw_atomic64_dec_and_test(atomic64_t *v);
+                static inline bool raw_atomic64_inc_and_test(atomic64_t *v);
+                static inline bool raw_atomic64_add_negative(s64 i, atomic64_t *v);
+                static inline long raw_atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u);
+                static inline bool raw_atomic64_add_unless(atomic64_t *v, s64 a, s64 u);
+                static inline bool raw_atomic64_inc_not_zero(atomic64_t *v);
+                static inline bool raw_atomic64_inc_unless_negative(atomic64_t *v);
+                static inline bool raw_atomic64_dec_unless_positive(atomic64_t *v);
+                static inline long raw_atomic64_dec_if_positive(atomic64_t *v);
+      
+                // *** Existing code ***
+                  static inline long raw_atomic_long_read(const atomic_long_t *v)
+                  {
+                      return raw_atomic64_read(v);
+                  }
+      
+                  static inline void raw_atomic_long_set(atomic_long_t *v, long i)
+                  {
+                      raw_atomic64_set(v,i);
+                  }
+      
+                  static inline void raw_atomic_long_add(long i, atomic_long_t *v)
+                  {
+                      raw_atomic64_add(i,v);
+                  }
+                  static inline long raw_atomic_long_add_return(long i, atomic_long_t *v)
+                  {
+                      return raw_atomic64_add_return(i,v);
+                  }
+                   static inline long raw_atomic_long_add_return_acquire(long i, atomic_long_t *v)
+                  {
+                      return raw_atomic64_add_return_acquire(i,v);
+                  }
+                   static inline long raw_atomic_long_add_return_release(long i, atomic_long_t *v)
+                  {
+                      return raw_atomic64_add_return_release(i,v);
+                  }
+                   static inline long raw_atomic_long_add_return_relaxed(long i, atomic_long_t *v)
+                  {
+                      return raw_atomic64_add_return_relaxed(i,v);
+                  }
+                  static inline long raw_atomic_long_fetch_add(long i, atomic_long_t *v)
+                  {
+                      return raw_atomic64_fetch_add(i,v);
+                  }
+                  static inline long raw_atomic_long_fetch_add_acquire(long i, atomic_long_t *v)
+                  {
+                      return raw_atomic64_fetch_add_acquire(i,v);
+                  }
+                  static inline long raw_atomic_long_fetch_add_release(long i, atomic_long_t *v)
+                  {
+                      return raw_atomic64_fetch_add_release(i,v);
+                  }
+                   static inline long raw_atomic_long_fetch_add_relaxed(long i, atomic_long_t *v)
+                  {
+                      return raw_atomic64_fetch_add_relaxed(i,v);
+                  }
+                  static inline void raw_atomic_long_sub(long i, atomic_long_t *v)
+                  {
+                      raw_atomic64_sub(i,v);
+                  }
+                  static inline long raw_atomic_long_sub_return(long i, atomic_long_t *v)
+                  {
+                     return  raw_atomic64_sub_return(i,v);
+                  }
+                   static inline long raw_atomic_long_sub_return_acquire(long i, atomic_long_t *v)
+                  {
+                     return  raw_atomic64_sub_return_acquire(i,v);
+                  }
+                   static inline long raw_atomic_long_sub_return_release(long i, atomic_long_t *v)
+                  {
+                     return raw_atomic64_sub_return_release(i,v);
+                  }
+                   static inline long raw_atomic_long_sub_return_relaxed(long i, atomic_long_t *v)
+                  {
+                      return raw_atomic64_sub_return_relaxed(i,v);
+                  }
+                  static inline long raw_atomic_long_fetch_sub(long i, atomic_long_t *v)
+                  {
+                      return raw_atomic64_fetch_sub(i,v);
+                  }
+                   static inline long raw_atomic_long_fetch_sub_acquire(long i, atomic_long_t *v)
+                  {
+                      return raw_atomic64_fetch_sub_acquire(i,v);
+                  }
+                  static inline long raw_atomic_long_fetch_sub_release(long i, atomic_long_t *v)
+                  {
+                      return raw_atomic64_fetch_sub_release(i,v);
+                  }
+                  static inline long raw_atomic_long_fetch_sub_relaxed(long i, atomic_long_t *v)
+                  {
+                     return raw_atomic64_fetch_sub_relaxed(i,v);
+                  }
+                  static inline void raw_atomic_long_inc(atomic_long_t *v)
+                  {
+                      raw_atomic64_inc(v);
+                  }
+                  static inline long raw_atomic_long_inc_return(atomic_long_t *v){
+                      return raw_atomic64_inc_return(v);
+                  }
+                  static inline long raw_atomic_long_fetch_inc(atomic_long_t *v){
+                     return raw_atomic64_fetch_inc(v);
+                  }
+                  static inline void raw_atomic_long_dec(atomic_long_t *v)
+                  {
+                    raw_atomic64_dec(v);
+                  }
+                  static inline long raw_atomic_long_dec_return(atomic_long_t *v){
+                      return raw_atomic64_dec_return(v);
+                  }
+                  static inline long raw_atomic_long_fetch_dec(atomic_long_t *v){
+                      return raw_atomic64_fetch_dec(v);
+                  }
+                  static inline void raw_atomic_long_and(long i, atomic_long_t *v){
+                      raw_atomic64_and(i,v);
+                  }
+                  static inline long raw_atomic_long_fetch_and(long i, atomic_long_t *v){
+                     return raw_atomic64_fetch_and(i,v);
+                  }
+                  static inline void raw_atomic_long_andnot(long i, atomic_long_t *v){
+                      raw_atomic64_andnot(i,v);
+                  }
+                   static inline long raw_atomic_long_fetch_andnot(long i, atomic_long_t *v){
+                     return  raw_atomic64_fetch_andnot(i,v);
+                  }
+                  static inline void raw_atomic_long_or(long i, atomic_long_t *v){
+                      raw_atomic64_or(i,v);
+                  }
+                  static inline long raw_atomic_long_fetch_or(long i, atomic_long_t *v){
+                      return raw_atomic64_fetch_or(i,v);
+                  }
+                  static inline void raw_atomic_long_xor(long i, atomic_long_t *v){
+                      raw_atomic64_xor(i,v);
+                  }
+                  static inline long raw_atomic_long_fetch_xor(long i, atomic_long_t *v){
+                     return raw_atomic64_fetch_xor(i,v);
+                  }
+                  static inline long raw_atomic_long_xchg(atomic_long_t *v, long new){
+                     return raw_atomic64_xchg(v,new);
+                  }
+                  static inline long raw_atomic_long_cmpxchg(atomic_long_t *v, long old, long new){
+                     return raw_atomic64_cmpxchg(v,old,new);
+                  }
+                  static inline bool raw_atomic_long_try_cmpxchg(atomic_long_t *v, long *old, long new){
+                    return  raw_atomic64_try_cmpxchg(v,old,new);
+                  }
+                  static inline bool raw_atomic_long_sub_and_test(long i, atomic_long_t *v){
+                      return raw_atomic64_sub_and_test(i,v);
+                  }
+                   static inline bool raw_atomic_long_dec_and_test(atomic_long_t *v){
+                      return raw_atomic64_dec_and_test(v);
+                  }
+                  static inline bool raw_atomic_long_inc_and_test(atomic_long_t *v){
+                      return raw_atomic64_inc_and_test(v);
+                  }
+                   static inline bool raw_atomic_long_add_negative(long i, atomic_long_t *v){
+                      return raw_atomic64_add_negative(i,v);
+                  }
+                  static inline long raw_atomic_long_fetch_add_unless(atomic_long_t *v, long a, long u){
+                      return raw_atomic64_fetch_add_unless(v,a,u);
+                  }
+                  static inline bool raw_atomic_long_add_unless(atomic_long_t *v, long a, long u){
+                      return raw_atomic64_add_unless(v,a,u);
+                  }
+                   static inline bool raw_atomic_long_inc_not_zero(atomic_long_t *v){
+                      return raw_atomic64_inc_not_zero(v);
+                  }
+                  static inline bool raw_atomic_long_inc_unless_negative(atomic_long_t *v){
+                      return raw_atomic64_inc_unless_negative(v);
+                  }
+                  static inline bool raw_atomic_long_dec_unless_positive(atomic_long_t *v){
+                      return raw_atomic64_dec_unless_positive(v);
+                  }
+                  static inline long raw_atomic_long_dec_if_positive(atomic_long_t *v){
+                     return raw_atomic64_dec_if_positive(v);
+                  }
+                #endif
+                EOF
       - name: 📥 Create atomic-raw64-compat.h with all atomic64 operations
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
