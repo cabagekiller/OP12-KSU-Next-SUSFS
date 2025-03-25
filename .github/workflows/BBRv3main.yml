@@ -2878,6 +2878,282 @@ jobs:
           fi
       
           echo "✅ Atomic operations and compiler definitions fixed"
+      - name: Fix Kernel Headers and Atomics
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          set -euxo pipefail
+
+          # 1. Fix fortify-string.h function prototype *CORRECTLY*
+          #    The previous sed command was too broad.  This one is precise.
+          FORTIFY_FILE="common/include/linux/fortify-string.h"
+          sed -i 's/void abort();/void abort(void);/' "$FORTIFY_FILE"
+
+          # 2.  Handle __always_inline and other compiler attributes *CORRECTLY*.
+          #     Instead of trying to modify stddef.h (which can be tricky due to
+          #     include order and multiple definitions), we'll define
+          #     __always_inline and other workarounds *only* if they are NOT
+          #     already defined. This is much safer.
+          COMPILER_FILE="common/include/linux/compiler_attributes.h"
+          if [ ! -f "$COMPILER_FILE" ]; then
+            COMPILER_FILE="common/include/linux/compiler.h"
+          fi
+
+          cat << \EOF >> "$COMPILER_FILE"
+          /* User-space compilation workarounds */
+          #ifndef __always_inline
+          #define __always_inline inline __attribute__((__always_inline__))
+          #endif
+          #ifndef __user
+          #define __user
+          #endif
+          #ifndef __kernel
+          #define __kernel
+          #endif
+          #ifndef __force
+          #define __force
+          #endif
+          #ifndef __must_check
+          #define __must_check
+          #endif
+          #ifndef __cold
+          #define __cold
+          #endif
+          #ifndef __noreturn
+          #define __noreturn
+          #endif
+          #ifndef __section
+          #define __section(x)
+          #endif
+          #ifndef __latent_entropy
+          #define __latent_entropy
+          #endif
+          #ifndef __noinitretpoline
+          #define __noinitretpoline
+          #endif
+          #ifndef __no_sanitize_or_inline
+          #define __no_sanitize_or_inline inline
+          #endif
+          #ifndef __no_kasan_or_inline
+          #define __no_kasan_or_inline inline
+          #endif
+          #ifndef __realloc_size
+          #define __realloc_size(x, ...)
+          #endif
+          #ifndef __unqual_scalar_typeof
+          #define __unqual_scalar_typeof(x) typeof(x)
+          #endif
+          #ifndef __counted_by
+          #define __counted_by(x)
+          #endif
+          #ifndef __member_size
+          #define __member_size(p) 0
+          #endif
+          #ifndef __struct_size
+          #define __struct_size(p) 0
+          #endif
+          #ifndef __fortify_panic
+          #define __fortify_panic(reason, avail, size) abort()
+          #endif
+          #ifndef fortify_panic
+          #define fortify_panic(func, write, avail, size, p) abort()
+          #endif
+          EOF
+            # Fix init.h empty macro
+          INIT_FILE="common/include/linux/init.h"
+          [ -f "$INIT_FILE" ] && sed -i '/^#define $/d' "$INIT_FILE"
+
+          # Fix ftrace likely data declaration
+          FTRACE_FILE="common/include/linux/compiler.h"
+          [ -f "$FTRACE_FILE" ] && sed -i 's/struct ftrace_likely_data \*f/void \*f/' "$FTRACE_FILE"
+          # 3. Create atomic-long.h with direct include of atomic-raw64-compat.h
+          mkdir -p common/include/linux/atomic
+          cat << EOF > common/include/linux/atomic/atomic-long.h
+          #ifndef _LINUX_ATOMIC_LONG_H
+          #define _LINUX_ATOMIC_LONG_H
+
+          #include <linux/compiler.h>
+          #include <linux/types.h>
+          #include <asm-generic/atomic-long.h>
+          // Include atomic-raw64-compat.h *directly* here.
+          #include <linux/atomic/atomic-raw64-compat.h>
+
+          #ifdef CONFIG_64BIT
+          typedef atomic64_t atomic_long_t;
+          #define ATOMIC_LONG_INIT(i)        ATOMIC64_INIT(i)
+          #else
+          typedef atomic_t atomic_long_t;
+          #define ATOMIC_LONG_INIT(i)        ATOMIC_INIT(i)
+          #endif
+
+            static inline long raw_atomic_long_read(const atomic_long_t *v)
+            {
+                return raw_atomic64_read(v);
+            }
+
+            static inline void raw_atomic_long_set(atomic_long_t *v, long i)
+            {
+                raw_atomic64_set(v,i);
+            }
+
+            static inline void raw_atomic_long_add(long i, atomic_long_t *v)
+            {
+                raw_atomic64_add(i,v);
+            }
+            static inline long raw_atomic_long_add_return(long i, atomic_long_t *v)
+            {
+                return raw_atomic64_add_return(i,v);
+            }
+             static inline long raw_atomic_long_add_return_acquire(long i, atomic_long_t *v)
+            {
+                return raw_atomic64_add_return_acquire(i,v);
+            }
+             static inline long raw_atomic_long_add_return_release(long i, atomic_long_t *v)
+            {
+                return raw_atomic64_add_return_release(i,v);
+            }
+             static inline long raw_atomic_long_add_return_relaxed(long i, atomic_long_t *v)
+            {
+                return raw_atomic64_add_return_relaxed(i,v);
+            }
+            static inline long raw_atomic_long_fetch_add(long i, atomic_long_t *v)
+            {
+                return raw_atomic64_fetch_add(i,v);
+            }
+            static inline long raw_atomic_long_fetch_add_acquire(long i, atomic_long_t *v)
+            {
+                return raw_atomic64_fetch_add_acquire(i,v);
+            }
+            static inline long raw_atomic_long_fetch_add_release(long i, atomic_long_t *v)
+            {
+                return raw_atomic64_fetch_add_release(i,v);
+            }
+             static inline long raw_atomic_long_fetch_add_relaxed(long i, atomic_long_t *v)
+            {
+                return raw_atomic64_fetch_add_relaxed(i,v);
+            }
+            static inline void raw_atomic_long_sub(long i, atomic_long_t *v)
+            {
+                raw_atomic64_sub(i,v);
+            }
+            static inline long raw_atomic_long_sub_return(long i, atomic_long_t *v)
+            {
+               return  raw_atomic64_sub_return(i,v);
+            }
+             static inline long raw_atomic_long_sub_return_acquire(long i, atomic_long_t *v)
+            {
+               return  raw_atomic64_sub_return_acquire(i,v);
+            }
+             static inline long raw_atomic_long_sub_return_release(long i, atomic_long_t *v)
+            {
+               return raw_atomic64_sub_return_release(i,v);
+            }
+             static inline long raw_atomic_long_sub_return_relaxed(long i, atomic_long_t *v)
+            {
+                return raw_atomic64_sub_return_relaxed(i,v);
+            }
+            static inline long raw_atomic_long_fetch_sub(long i, atomic_long_t *v)
+            {
+                return raw_atomic64_fetch_sub(i,v);
+            }
+             static inline long raw_atomic_long_fetch_sub_acquire(long i, atomic_long_t *v)
+            {
+                return raw_atomic64_fetch_sub_acquire(i,v);
+            }
+            static inline long raw_atomic_long_fetch_sub_release(long i, atomic_long_t *v)
+            {
+                return raw_atomic64_fetch_sub_release(i,v);
+            }
+            static inline long raw_atomic_long_fetch_sub_relaxed(long i, atomic_long_t *v)
+            {
+               return raw_atomic64_fetch_sub_relaxed(i,v);
+            }
+            static inline void raw_atomic_long_inc(atomic_long_t *v)
+            {
+                raw_atomic64_inc(v);
+            }
+            static inline long raw_atomic_long_inc_return(atomic_long_t *v){
+                return raw_atomic64_inc_return(v);
+            }
+            static inline long raw_atomic_long_fetch_inc(atomic_long_t *v){
+               return raw_atomic64_fetch_inc(v);
+            }
+            static inline void raw_atomic_long_dec(atomic_long_t *v)
+            {
+              raw_atomic64_dec(v);
+            }
+            static inline long raw_atomic_long_dec_return(atomic_long_t *v){
+                return raw_atomic64_dec_return(v);
+            }
+            static inline long raw_atomic_long_fetch_dec(atomic_long_t *v){
+                return raw_atomic64_fetch_dec(v);
+            }
+            static inline void raw_atomic_long_and(long i, atomic_long_t *v){
+                raw_atomic64_and(i,v);
+            }
+            static inline long raw_atomic_long_fetch_and(long i, atomic_long_t *v){
+               return raw_atomic64_fetch_and(i,v);
+            }
+            static inline void raw_atomic_long_andnot(long i, atomic_long_t *v){
+                raw_atomic64_andnot(i,v);
+            }
+             static inline long raw_atomic_long_fetch_andnot(long i, atomic_long_t *v){
+               return  raw_atomic64_fetch_andnot(i,v);
+            }
+            static inline void raw_atomic_long_or(long i, atomic_long_t *v){
+                raw_atomic64_or(i,v);
+            }
+            static inline long raw_atomic_long_fetch_or(long i, atomic_long_t *v){
+                return raw_atomic64_fetch_or(i,v);
+            }
+            static inline void raw_atomic_long_xor(long i, atomic_long_t *v){
+                raw_atomic64_xor(i,v);
+            }
+            static inline long raw_atomic_long_fetch_xor(long i, atomic_long_t *v){
+               return raw_atomic64_fetch_xor(i,v);
+            }
+            static inline long raw_atomic_long_xchg(atomic_long_t *v, long new){
+             return raw_atomic64_xchg(v,new);
+            }
+            static inline long raw_atomic_long_cmpxchg(atomic_long_t *v, long old, long new){
+             return raw_atomic64_cmpxchg(v,old,new);
+            }
+            static inline bool raw_atomic_long_try_cmpxchg(atomic_long_t *v, long *old, long new){
+            return  raw_atomic64_try_cmpxchg(v,old,new);
+            }
+            static inline bool raw_atomic_long_sub_and_test(long i, atomic_long_t *v){
+                return raw_atomic64_sub_and_test(i,v);
+            }
+             static inline bool raw_atomic_long_dec_and_test(atomic_long_t *v){
+                return raw_atomic64_dec_and_test(v);
+            }
+            static inline bool raw_atomic_long_inc_and_test(atomic_long_t *v){
+                return raw_atomic64_inc_and_test(v);
+            }
+             static inline bool raw_atomic_long_add_negative(long i, atomic_long_t *v){
+                return raw_atomic64_add_negative(i,v);
+            }
+            static inline long raw_atomic_long_fetch_add_unless(atomic_long_t *v, long a, long u){
+                return raw_atomic64_fetch_add_unless(v,a,u);
+            }
+            static inline bool raw_atomic_long_add_unless(atomic_long_t *v, long a, long u){
+                return raw_atomic64_add_unless(v,a,u);
+            }
+             static inline bool raw_atomic_long_inc_not_zero(atomic_long_t *v){
+                return raw_atomic64_inc_not_zero(v);
+            }
+            static inline bool raw_atomic_long_inc_unless_negative(atomic_long_t *v){
+                return raw_atomic64_inc_unless_negative(v);
+            }
+            static inline bool raw_atomic_long_dec_unless_positive(atomic_long_t *v){
+                return raw_atomic64_dec_unless_positive(v);
+            }
+            static inline long raw_atomic_long_dec_if_positive(atomic_long_t *v){
+             return raw_atomic64_dec_if_positive(v);
+            }
+          #endif
+          EOF
+
+          echo "✅ Fixed kernel header compilation issues and created atomic-long.h"
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         env:
