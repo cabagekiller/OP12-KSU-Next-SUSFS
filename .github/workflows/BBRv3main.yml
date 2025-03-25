@@ -959,6 +959,26 @@ jobs:
           sed -i 's/typedef struct __user_cap_data_struct __user \*cap_user_data_t;/typedef struct __user_cap_data_struct *cap_user_data_t;/' "$CAPABILITY_FILE"
           
           echo "✅ Fixed capability.h typedef syntax"
+      - name: 🛠️ Fix duplicate typedefs in capability.h
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          CAPABILITY_FILE="common/include/uapi/linux/capability.h"
+          
+          # Backup original file
+          cp "$CAPABILITY_FILE" "${CAPABILITY_FILE}.bak"
+          
+          # Remove all existing typedef declarations
+          sed -i '/typedef struct __user_cap_header_struct \*cap_user_header_t;/d' "$CAPABILITY_FILE"
+          sed -i '/typedef struct __user_cap_data_struct __user \*cap_user_data_t;/d' "$CAPABILITY_FILE"
+          
+          # Add clean typedef declarations after struct definitions
+          sed -i '/struct __user_cap_header_struct {/a typedef struct __user_cap_header_struct *cap_user_header_t;' "$CAPABILITY_FILE"
+          sed -i '/struct __user_cap_data_struct {/a typedef struct __user_cap_data_struct *cap_user_data_t;' "$CAPABILITY_FILE"
+          
+          # Ensure only one copy of each typedef exists
+          awk '!seen[$0]++' "$CAPABILITY_FILE" > "${CAPABILITY_FILE}.tmp" && mv "${CAPABILITY_FILE}.tmp" "$CAPABILITY_FILE"
+          
+          echo "✅ Removed duplicate typedefs from capability.h"
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         env:
