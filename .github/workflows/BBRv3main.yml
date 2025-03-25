@@ -979,6 +979,87 @@ jobs:
           awk '!seen[$0]++' "$CAPABILITY_FILE" > "${CAPABILITY_FILE}.tmp" && mv "${CAPABILITY_FILE}.tmp" "$CAPABILITY_FILE"
           
           echo "✅ Removed duplicate typedefs from capability.h"
+      - name: 🛠️ Fix capability.h header
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          # Create a clean version of capability.h
+          cat << 'EOF' > "common/include/uapi/linux/capability.h"
+          #ifndef _LINUX_CAPABILITY_H
+          #define _LINUX_CAPABILITY_H
+          
+          #include <linux/types.h>
+          
+          struct __user_cap_header_struct {
+              __u32 version;
+              int pid;
+          };
+          
+          struct __user_cap_data_struct {
+              __u32 effective;
+              __u32 permitted;
+              __u32 inheritable;
+          };
+          
+          typedef struct __user_cap_header_struct *cap_user_header_t;
+          typedef struct __user_cap_data_struct *cap_user_data_t;
+          
+          #define _LINUX_CAPABILITY_VERSION_1  0x19980330
+          #define _LINUX_CAPABILITY_U32S_1     1
+          
+          #define _LINUX_CAPABILITY_VERSION_2  0x20071026
+          #define _LINUX_CAPABILITY_U32S_2     2
+          
+          #define _LINUX_CAPABILITY_VERSION_3  0x20080522
+          #define _LINUX_CAPABILITY_U32S_3     2
+          
+          #endif /* _LINUX_CAPABILITY_H */
+          EOF
+      - name: 🛠️ Fix socket.h header
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          # Add typedef before struct definition
+          sed -i '1i typedef unsigned short __kernel_sa_family_t;' "common/include/uapi/linux/socket.h"
+      - name: 🛠️ Fix SELinux headers
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          # Fix classmap.h
+          CLASSMAP="common/security/selinux/include/classmap.h"
+          sed -i 's/const struct security_class_mapping secclass_map\[\]/extern const struct security_class_mapping secclass_map[]/' "$CLASSMAP"
+          
+          # Fix initial_sid_to_string.h
+          INIT_SID="common/security/selinux/include/initial_sid_to_string.h"
+          sed -i 's/static const char \*const initial_sid_to_string\[\]/extern const char *const initial_sid_to_string[]/' "$INIT_SID"
+      - name: 🛠️ Fix genheaders.c
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          GENHEADERS="common/scripts/selinux/genheaders/genheaders.c"
+          # Remove static from usage function
+          sed -i 's/static void usage(void)/void usage(void)/' "$GENHEADERS"
+          
+          # Add missing includes
+          sed -i '1i #include <stdlib.h>' "$GENHEADERS"
+          sed -i '1i #include <string.h>' "$GENHEADERS"
+      - name: 🛠️ Add compiler workarounds
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          # Create compiler.h workarounds
+          cat << 'EOF' >> "common/include/linux/compiler.h"
+          #ifndef __user
+          #define __user
+          #endif
+          #ifndef __kernel
+          #define __kernel
+          #endif
+          #ifndef __force
+          #define __force
+          #endif
+          #ifndef __must_check
+          #define __must_check
+          #endif
+          #ifndef __always_inline
+          #define __always_inline inline
+          #endif
+          EOF
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         env:
