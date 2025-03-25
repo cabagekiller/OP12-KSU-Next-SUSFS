@@ -2581,15 +2581,15 @@ jobs:
           if [ ! -f "$COMPILER_TYPES" ]; then
             mkdir -p $(dirname "$COMPILER_TYPES")
             cat << 'EOF' > "$COMPILER_TYPES"
-            #ifndef _LINUX_COMPILER_TYPES_H
-            #define _LINUX_COMPILER_TYPES_H
-          
-            #define __native_word(t) (sizeof(t) <= sizeof(long))
-          
-            #endif /* _LINUX_COMPILER_TYPES_H */
-            EOF
+          #ifndef _LINUX_COMPILER_TYPES_H
+          #define _LINUX_COMPILER_TYPES_H
+      
+          #define __native_word(t) (sizeof(t) <= sizeof(long))
+      
+          #endif /* _LINUX_COMPILER_TYPES_H */
+          EOF
           fi
-          
+      
           # Verify atomic headers
           mkdir -p common/include/linux/atomic
           [ -f "common/include/linux/atomic/atomic-long.h" ] || \
