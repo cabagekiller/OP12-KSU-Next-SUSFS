@@ -3153,14 +3153,25 @@ jobs:
 
           echo "✅ Fixed kernel header compilation issues and created atomic-long.h"
 
-      - name: Patch compiler_attributes.h to avoid macro redefinition
+      - name: Guard __always_inline macro
         run: |
-         COMP_ATTR_FILE="common/include/linux/compiler_attributes.h"
-         echo "Guarding __always_inline macro..."
-         sed -i 's@^#define __always_inline inline __attribute__((__always_inline__))@#ifndef __always_inline\
-         #define __always_inline inline __attribute__((__always_inline__))\
-         #endif@' "$COMP_ATTR_FILE"
-         echo "Done."
+          echo "🔍 Searching for compiler attributes header..."
+          # Try to locate either compiler_attributes.h or compiler.h
+          COMP_ATTR_FILE=$(find common/include/linux -maxdepth 1 -name "compiler*.h" | grep -E 'compiler(_attributes)?\.h' | head -n1)
+      
+          if [ -n "$COMP_ATTR_FILE" ]; then
+            echo "✅ Found: $COMP_ATTR_FILE"
+            echo "🛡️  Guarding __always_inline macro..."
+      
+            sed -i 's@^#define __always_inline inline __attribute__((__always_inline__))@#ifndef __always_inline\
+            #define __always_inline inline __attribute__((__always_inline__))\
+            #endif@' "$COMP_ATTR_FILE"
+      
+            echo "✅ __always_inline macro guarded successfully."
+          else
+            echo "⚠️  Could not find compiler_attributes.h or compiler.h — skipping __always_inline patch."
+          fi
+
 
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
