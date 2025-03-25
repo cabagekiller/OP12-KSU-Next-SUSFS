@@ -1061,37 +1061,9 @@ jobs:
           #endif
           EOF
           
-      - name: Fix Kernel Headers and Atomics
+      - name: Create complete atomic-long.h (with direct include)
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
-          set -euxo pipefail
-
-          # 1. Fix __always_inline macro conflict in stddef.h
-          sed -i '/^#define __always_inline inline$/d' "common/include/uapi/linux/stddef.h"
-
-          # 2. Fix fortify-string.h function prototype
-          FORTIFY_FILE="common/include/linux/fortify-string.h"
-          sed -i 's/void abort();/void abort(void);/' "$FORTIFY_FILE"
-          sed -i 's/__fortify_panic(/abort(); \/\* __fortify_panic(/' "$FORTIFY_FILE"
-
-          # 3. Add comprehensive compiler workarounds to compiler_attributes.h OR compiler.h
-          COMPILER_FILE="common/include/linux/compiler_attributes.h"
-          if [ ! -f "$COMPILER_FILE" ]; then
-            COMPILER_FILE="common/include/linux/compiler.h"
-          fi
-
-          # Use a properly escaped here-document
-          cat << \EOF >> "$COMPILER_FILE"
-          /* User-space compilation workarounds */
-          #ifndef __always_inline
-          #define __always_inline inline __attribute__((__always_inline__))
-          #endif
-          #ifndef __fortify_panic
-          #define __fortify_panic(reason, avail, size) abort()
-          #endif
-          EOF
-
-          # 4. Create atomic-long.h with forward declarations
           mkdir -p common/include/linux/atomic
           cat << EOF > common/include/linux/atomic/atomic-long.h
           #ifndef _LINUX_ATOMIC_LONG_H
@@ -1100,6 +1072,9 @@ jobs:
           #include <linux/compiler.h>
           #include <linux/types.h>
           #include <asm-generic/atomic-long.h>
+          // Include atomic-raw64-compat.h *directly* here. This is
+          // the most reliable way to make the raw_atomic64_* functions
+          // available.
           #include <linux/atomic/atomic-raw64-compat.h>
 
           #ifdef CONFIG_64BIT
@@ -1110,56 +1085,6 @@ jobs:
           #define ATOMIC_LONG_INIT(i)        ATOMIC_INIT(i)
           #endif
 
-          // *** FORWARD DECLARATIONS ***
-          static inline long raw_atomic64_read(const atomic64_t *v);
-          static inline void raw_atomic64_set(atomic64_t *v, s64 i);
-          static inline void raw_atomic64_add(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_add_return(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_add_return_acquire(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_add_return_release(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_add_return_relaxed(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_fetch_add(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_fetch_add_acquire(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_fetch_add_release(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_fetch_add_relaxed(s64 i, atomic64_t *v);
-          static inline void raw_atomic64_sub(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_sub_return(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_sub_return_acquire(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_sub_return_release(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_sub_return_relaxed(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_fetch_sub(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_fetch_sub_acquire(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_fetch_sub_release(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_fetch_sub_relaxed(s64 i, atomic64_t *v);
-          static inline void raw_atomic64_inc(atomic64_t *v);
-          static inline long raw_atomic64_inc_return(atomic64_t *v);
-          static inline long raw_atomic64_fetch_inc(atomic64_t *v);
-          static inline void raw_atomic64_dec(atomic64_t *v);
-          static inline long raw_atomic64_dec_return(atomic64_t *v);
-          static inline long raw_atomic64_fetch_dec(atomic64_t *v);
-          static inline void raw_atomic64_and(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_fetch_and(s64 i, atomic64_t *v);
-          static inline void raw_atomic64_andnot(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_fetch_andnot(s64 i, atomic64_t *v);
-          static inline void raw_atomic64_or(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_fetch_or(s64 i, atomic64_t *v);
-          static inline void raw_atomic64_xor(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_fetch_xor(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_xchg(atomic64_t *v, s64 new);
-          static inline long raw_atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new);
-          static inline bool raw_atomic64_try_cmpxchg(atomic64_t *v, s64 *old, s64 new);
-          static inline bool raw_atomic64_sub_and_test(s64 i, atomic64_t *v);
-          static inline bool raw_atomic64_dec_and_test(atomic64_t *v);
-          static inline bool raw_atomic64_inc_and_test(atomic64_t *v);
-          static inline bool raw_atomic64_add_negative(s64 i, atomic64_t *v);
-          static inline long raw_atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u);
-          static inline bool raw_atomic64_add_unless(atomic64_t *v, s64 a, s64 u);
-          static inline bool raw_atomic64_inc_not_zero(atomic64_t *v);
-          static inline bool raw_atomic64_inc_unless_negative(atomic64_t *v);
-          static inline bool raw_atomic64_dec_unless_positive(atomic64_t *v);
-          static inline long raw_atomic64_dec_if_positive(atomic64_t *v);
-
-          // *** Existing code ***
             static inline long raw_atomic_long_read(const atomic_long_t *v)
             {
                 return raw_atomic64_read(v);
@@ -1325,8 +1250,8 @@ jobs:
             static inline long raw_atomic_long_dec_if_positive(atomic_long_t *v){
              return raw_atomic64_dec_if_positive(v);
             }
-            #endif
-            EOF
+          #endif
+          EOF
 
           echo "✅ Fixed kernel header compilation issues and created atomic-long.h"
       - name: 📥 Create atomic-raw64-compat.h with all atomic64 operations
