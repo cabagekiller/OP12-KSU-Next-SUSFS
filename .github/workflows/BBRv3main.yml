@@ -625,7 +625,28 @@ jobs:
           find common/arch/arm64/include/asm/ -name "*.h" -print0 | xargs -0 sed -i 's/:  :  "i"(&((char \\*)key)\\[branch\\]) :  : l_yes);/:  :  "i"(&((char \\*)key)\\[branch\\]) :  : l_yes);)/g'
           sed -i 's/static atomic_long_read/atomic_long_read/g' common/include/linux/atomic/atomic-instrumented.h
           sed -i 's/static atomic_long_cmpxchg_release/atomic_long_cmpxchg_release/g' common/include/linux/atomic/atomic-instrumented.h
+      - name: 🔧 Include raw64 compat header in atomic_ll_sc.h
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          HEADER_FILE="common/arch/arm64/include/asm/atomic_ll_sc.h"
+          grep -q 'atomic-raw64-compat.h' "$HEADER_FILE" || \
+            sed -i '/atomic-long.h/a #include <linux/atomic/atomic-raw64-compat.h>' "$HEADER_FILE"
+
+      - name: 📥 Copy fallback header into kernel tree
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          cp $GITHUB_WORKSPACE/patches/atomic-raw64-compat.h common/include/linux/atomic/
+      - name: 🪛 Inject fallback headers for BBRv3 support
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          set -euxo pipefail
       
+          echo "📥 Copying compiler_types fallback..."
+          cp "$GITHUB_WORKSPACE/fallback_headers/compiler_types_fallback.h" "common/include/linux/compiler_types.h"
+      
+          echo "📥 Copying atomic_ll_sc fallback..."
+          cp "$GITHUB_WORKSPACE/fallback_headers/atomic_ll_sc_fallback.h" "common/arch/arm64/include/asm/atomic_ll_sc.h"
+
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         env:
