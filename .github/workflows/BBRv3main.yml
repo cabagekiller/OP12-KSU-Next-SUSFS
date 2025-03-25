@@ -2887,7 +2887,7 @@ jobs:
           FORTIFY_FILE="common/include/linux/fortify-string.h"
           sed -i 's/void abort();/void abort(void);/' "$FORTIFY_FILE"
 
-          # 2. Define ALWAYS_INLINE and other workarounds.
+          # 2. Define ALWAYS_INLINE (our custom macro) and other workarounds.
           COMPILER_FILE="common/include/linux/compiler_attributes.h"
           if [ ! -f "$COMPILER_FILE" ]; then
             COMPILER_FILE="common/include/linux/compiler.h"
@@ -2896,22 +2896,10 @@ jobs:
           cat << EOF >> "$COMPILER_FILE"
           /* User-space compilation workarounds */
 
-          // --- CRITICAL FIX ---
-          // Prevent stddef.h from defining __always_inline.
-          // We define it *conditionally* to 'inline'.  This prevents
-          // the redefinition error, but ONLY if this header is
-          // included *before* stddef.h.
-          #ifndef __always_inline
-          #define __always_inline inline
-          #endif
-
-          // Define our custom ALWAYS_INLINE macro.  This is what we
-          // will *actually* use throughout our code.  We do NOT
-          // attempt to redefine __always_inline again.
+          // Define our custom ALWAYS_INLINE macro.
           #ifndef ALWAYS_INLINE
           #define ALWAYS_INLINE inline __attribute__((__always_inline__))
           #endif
-          // --- END CRITICAL FIX ---
 
           #ifndef __user
           #define __user
@@ -2976,7 +2964,6 @@ jobs:
           # Fix ftrace likely data declaration
           FTRACE_FILE="common/include/linux/compiler.h"
           [ -f "$FTRACE_FILE" ] && sed -i 's/struct ftrace_likely_data \*f/void \*f/' "$FTRACE_FILE"
-
 
           # 3. Create atomic-long.h (using ALWAYS_INLINE)
           mkdir -p common/include/linux/atomic
