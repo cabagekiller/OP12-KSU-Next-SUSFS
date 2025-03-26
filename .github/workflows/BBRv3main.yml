@@ -3153,51 +3153,41 @@ jobs:
 
           echo "✅ Fixed kernel header compilation issues and created atomic-long.h"
 
-      - name: Ensure proper __always_inline guard
+      - name: Fix conflicting __always_inline macros
         run: |
-          echo "🔍 Checking for compiler attributes and stddef.h..."
-          
-          # Search for the relevant files
-          COMP_ATTR_FILE=$(find . -type f -name "compiler*.h" | grep -E 'compiler(_attributes)?\.h' | head -n1)
-          STDDEF_FILE=$(find . -type f -name "stddef.h" | head -n1)
-          
-          if [ -n "$COMP_ATTR_FILE" ] && [ -n "$STDDEF_FILE" ]; then
-            echo "✅ Found both files: $COMP_ATTR_FILE and $STDDEF_FILE"
-            
-            # Add debugging outputs to ensure the patching happens correctly
-            echo "🛠️  Debug: Checking if __always_inline is already defined in $COMP_ATTR_FILE"
-            grep -H '__always_inline' "$COMP_ATTR_FILE"
-            
-            echo "🛠️  Debug: Checking if __always_inline is already defined in $STDDEF_FILE"
-            grep -H '__always_inline' "$STDDEF_FILE"
-            
-            # Guard __always_inline in compiler_attributes.h if not already defined
-            echo "🛡️  Guarding in $COMP_ATTR_FILE"
-            if ! grep -q '__always_inline' "$COMP_ATTR_FILE"; then
-              echo "#ifndef __always_inline" >> "$COMP_ATTR_FILE"
-              echo "#define __always_inline inline __attribute__((__always_inline__))" >> "$COMP_ATTR_FILE"
-              echo "#endif" >> "$COMP_ATTR_FILE"
-            fi
-            
-            # Ensure we don't define __always_inline in stddef.h if it's already defined in compiler_attributes.h
-            echo "🛡️  Guarding in $STDDEF_FILE"
-            if ! grep -q '__always_inline' "$STDDEF_FILE"; then
-              echo "#ifndef __always_inline" >> "$STDDEF_FILE"
-              echo "#define __always_inline inline" >> "$STDDEF_FILE"
-              echo "#endif" >> "$STDDEF_FILE"
-            fi
-            
-            echo "✅ Guarding completed successfully."
-            
-            # Debug output after patch
-            echo "🛠️  Debug: Checking final definitions of __always_inline"
-            grep -H '__always_inline' "$COMP_ATTR_FILE"
-            grep -H '__always_inline' "$STDDEF_FILE"
-          
-          else
-            echo "⚠️  Could not find the required files — skipping __always_inline patch."
+          echo "🔍 Locating __always_inline macro definitions..."
+      
+          COMPILER_H=$(find . -type f -name "compiler.h" | grep "bbrv3/tools" | head -n 1)
+          STDDEF_H=$(find . -type f -name "stddef.h" | grep "bbrv3/tools" | head -n 1)
+      
+          echo "🧩 compiler.h: $COMPILER_H"
+          echo "🧩 stddef.h: $STDDEF_H"
+      
+          if [[ -f "$COMPILER_H" ]]; then
+            echo "🧼 Cleaning up $COMPILER_H"
+      
+            # Delete the undef line
+            sed -i '/^#undef __always_inline/d' "$COMPILER_H"
+      
+            # Wrap the second define in #ifndef (the one after undef)
+            sed -i '/^#define __always_inline[[:space:]]*inline$/{
+              i #ifndef __always_inline
+              a #endif
+            }' "$COMPILER_H"
           fi
-
+      
+          if [[ -f "$STDDEF_H" ]]; then
+            echo "🧼 Checking $STDDEF_H for guards"
+      
+            # Ensure it's wrapped if it’s not already
+            sed -i '/^#define __always_inline[[:space:]]*__inline__$/{
+              i #ifndef __always_inline
+              a #endif
+            }' "$STDDEF_H"
+          fi
+      
+          echo "✅ __always_inline patching complete."
+          grep -Hn '__always_inline' "$COMPILER_H" "$STDDEF_H"
 
 
 
