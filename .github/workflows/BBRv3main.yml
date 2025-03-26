@@ -3308,11 +3308,24 @@ jobs:
           # Inject into global build via CPPFLAGS
           echo '#include "linux/atomic/atomic64_fallback.h"' >> kernel_platform/common/include/linux/kernel.h
 
-      - name: Apply atomic long fallbacks patch
-        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+      - name: Copy patch to target directory
         run: |
-          patch -p2 < ../../../../../patches/atomic-long-fallbacks-20250326203200.patch
-
+          # Ensure we're in the correct directory where the file is located
+          cp ${GITHUB_WORKSPACE}/patches/atomic-long-fallbacks-20250326203200.patch ${KERNEL_DIR}/kernel_platform/common/include/linux/atomic/
+      
+      - name: Apply Atomic Long Fallbacks Patch
+        run: |
+          # Change to the directory where the patch file is copied
+          cd ${KERNEL_DIR}/kernel_platform/common/include/linux/atomic/
+      
+          # Apply the patch without needing -p option
+          patch < atomic-long-fallbacks-20250326203200.patch
+      
+          # Check if the patch was applied successfully
+          if [ $? -ne 0 ]; then
+            echo "Failed to apply the patch"
+            exit 1
+          fi
 
 
       - name: Build Kernel
