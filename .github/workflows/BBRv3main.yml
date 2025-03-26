@@ -3153,25 +3153,32 @@ jobs:
 
           echo "✅ Fixed kernel header compilation issues and created atomic-long.h"
 
-      - name: Guard __always_inline macro
+      - name: Guard __always_inline macro in both files
         run: |
           echo "🔍 Searching for compiler attributes header..."
-          # Try to locate either compiler_attributes.h or compiler.h
+          # Try to locate either compiler_attributes.h or stddef.h
           COMP_ATTR_FILE=$(find common/include/linux -maxdepth 1 -name "compiler*.h" | grep -E 'compiler(_attributes)?\.h' | head -n1)
+          STDDEF_FILE=$(find common/include/uapi/linux -maxdepth 1 -name "stddef.h" | head -n1)
       
-          if [ -n "$COMP_ATTR_FILE" ]; then
-            echo "✅ Found: $COMP_ATTR_FILE"
-            echo "🛡️  Guarding __always_inline macro..."
+          # Ensure we found both files
+          if [ -n "$COMP_ATTR_FILE" ] && [ -n "$STDDEF_FILE" ]; then
+            echo "✅ Found: $COMP_ATTR_FILE and $STDDEF_FILE"
+            echo "🛡️  Guarding __always_inline macro in both files..."
       
-            # Check if __always_inline is already defined before attempting to define it
-            sed -i '/^#ifndef __always_inline/!b;/^#define __always_inline/!b;/^#endif/!s@^@#ifndef __always_inline\
-            #define __always_inline inline __attribute__((__always_inline__))\
-            #endif@' "$COMP_ATTR_FILE"
+            # Guard __always_inline in both files
+            for file in "$COMP_ATTR_FILE" "$STDDEF_FILE"; do
+              echo "🔧 Guarding in $file"
+              # Apply the guard to both files
+              sed -i '/^#ifndef __always_inline/!b;/^#define __always_inline/!b;/^#endif/!s@^@#ifndef __always_inline\
+              #define __always_inline inline __attribute__((__always_inline__))\
+              #endif@' "$file"
+            done
       
-            echo "✅ __always_inline macro guarded successfully."
+            echo "✅ __always_inline macro guarded successfully in both files."
           else
-            echo "⚠️  Could not find compiler_attributes.h or compiler.h — skipping __always_inline patch."
+            echo "⚠️  Could not find compiler_attributes.h or stddef.h — skipping __always_inline patch."
           fi
+
 
 
       - name: Build Kernel
