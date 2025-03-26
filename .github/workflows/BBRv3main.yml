@@ -3163,7 +3163,8 @@ jobs:
             echo "✅ Found: $COMP_ATTR_FILE"
             echo "🛡️  Guarding __always_inline macro..."
       
-            sed -i 's@^#define __always_inline inline __attribute__((__always_inline__))@#ifndef __always_inline\
+            # Check if __always_inline is already defined before attempting to define it
+            sed -i '/^#ifndef __always_inline/!b;/^#define __always_inline/!b;/^#endif/!s@^@#ifndef __always_inline\
             #define __always_inline inline __attribute__((__always_inline__))\
             #endif@' "$COMP_ATTR_FILE"
       
