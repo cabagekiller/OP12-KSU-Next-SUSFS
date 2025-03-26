@@ -3297,6 +3297,9 @@ jobs:
             echo '#define ALWAYS_INLINE inline __attribute__((always_inline))'
             echo '#endif'
           } >> kernel_platform/common/include/linux/compiler_types.h
+      - name: Patch atomic64 fallbacks
+        run: |
+          patch -d kernel_platform/common/include/linux/atomic -p0 < patches/atomic64_fallback.patch
 
 
       - name: Build Kernel
