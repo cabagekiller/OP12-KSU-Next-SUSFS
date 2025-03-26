@@ -3280,12 +3280,24 @@ jobs:
       
           # Clean up by removing the patch file
           rm patches/raw_atomic64_patch.patch
-      - name: Inject raw_atomic64 fallback headers
+      - name: Inject raw_atomic64 fallback and ALWAYS_INLINE definition
         run: |
+          # Ensure target directory exists
+          mkdir -p kernel_platform/common/include/linux/atomic
+      
+          # Ensure atomic-long.h exists
+          touch kernel_platform/common/include/linux/atomic/atomic-long.h
+      
+          # Append raw_atomic64 fallback definitions
           cat patches/raw_atomic64_fallback.h >> kernel_platform/common/include/linux/atomic/atomic-long.h
-          echo '#ifndef ALWAYS_INLINE' >> kernel_platform/common/include/linux/compiler_types.h
-          echo '#define ALWAYS_INLINE inline __attribute__((always_inline))' >> kernel_platform/common/include/linux/compiler_types.h
-          echo '#endif' >> kernel_platform/common/include/linux/compiler_types.h
+      
+          # Add ALWAYS_INLINE definition if not present
+          {
+            echo '#ifndef ALWAYS_INLINE'
+            echo '#define ALWAYS_INLINE inline __attribute__((always_inline))'
+            echo '#endif'
+          } >> kernel_platform/common/include/linux/compiler_types.h
+
 
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
