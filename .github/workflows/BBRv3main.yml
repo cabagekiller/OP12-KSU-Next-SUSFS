@@ -3209,6 +3209,73 @@ jobs:
           
           # Verify the genrule was added
           tail -n 20 "$BUILD_FILE"  # Show the last 20 lines to verify the genrule is added
+      - name: Patch kernel for missing raw_atomic64 functions and ALWAYS_INLINE
+        run: |
+          # Create the patch file for missing raw_atomic64_* functions
+          cat << 'EOF' > patches/raw_atomic64_patch.patch
+          #include <linux/atomic.h>  # Ensure atomic operations are available
+      
+          #ifndef ALWAYS_INLINE
+          #define ALWAYS_INLINE inline __attribute__((always_inline))  # Define ALWAYS_INLINE if not already defined
+          #endif
+      
+          # Define missing raw_atomic64_* functions if not already available
+          #define raw_atomic64_add(i, v) atomic_add((i), (v))
+          #define raw_atomic64_add_return(i, v) atomic_add_return((i), (v))
+          #define raw_atomic64_add_return_acquire(i, v) atomic_add_return_acquire((i), (v))
+          #define raw_atomic64_add_return_release(i, v) atomic_add_return_release((i), (v))
+          #define raw_atomic64_add_return_relaxed(i, v) atomic_add_return_relaxed((i), (v))
+      
+          # Define the functions used in the file as inline functions
+          static ALWAYS_INLINE long raw_atomic_long_add_return(long i, atomic_long_t *v)
+          {
+              return raw_atomic64_add_return(i, v);
+          }
+      
+          static ALWAYS_INLINE long raw_atomic_long_add_return_acquire(long i, atomic_long_t *v)
+          {
+              return raw_atomic64_add_return_acquire(i, v);
+          }
+      
+          static ALWAYS_INLINE long raw_atomic_long_add_return_release(long i, atomic_long_t *v)
+          {
+              return raw_atomic64_add_return_release(i, v);
+          }
+      
+          static ALWAYS_INLINE long raw_atomic_long_add_return_relaxed(long i, atomic_long_t *v)
+          {
+              return raw_atomic64_add_return_relaxed(i, v);
+          }
+      
+          # Repeat for fetch_add, if needed:
+          static ALWAYS_INLINE long raw_atomic_long_fetch_add(long i, atomic_long_t *v)
+          {
+              return raw_atomic64_fetch_add(i, v);
+          }
+      
+          static ALWAYS_INLINE long raw_atomic_long_fetch_add_acquire(long i, atomic_long_t *v)
+          {
+              return raw_atomic64_fetch_add_acquire(i, v);
+          }
+      
+          static ALWAYS_INLINE long raw_atomic_long_fetch_add_release(long i, atomic_long_t *v)
+          {
+              return raw_atomic64_fetch_add_release(i, v);
+          }
+      
+          static ALWAYS_INLINE long raw_atomic_long_fetch_add_relaxed(long i, atomic_long_t *v)
+          {
+              return raw_atomic64_fetch_add_relaxed(i, v);
+          }
+      
+          EOF
+      
+          # Apply the patch
+          git apply patches/raw_atomic64_patch.patch
+      
+          # Clean up by removing the patch file
+          rm patches/raw_atomic64_patch.patch
+
 
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
