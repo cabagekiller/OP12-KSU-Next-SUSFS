@@ -3300,6 +3300,13 @@ jobs:
       - name: Patch atomic64 fallbacks
         run: |
           patch -d kernel_platform/common/include/linux/atomic -p0 < patches/atomic64_fallback.patch
+      - name: Inject atomic64 fallback
+        run: |
+          mkdir -p kernel_platform/common/include/linux/atomic
+          cp patches/include/linux/atomic/atomic64_fallback.h kernel_platform/common/include/linux/atomic/
+      
+          # Inject into global build via CPPFLAGS
+          echo '#include "linux/atomic/atomic64_fallback.h"' >> kernel_platform/common/include/linux/kernel.h
 
 
       - name: Build Kernel
