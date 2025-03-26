@@ -3307,6 +3307,7 @@ jobs:
           fi
 
       - name: Patch atomic64 fallbacks
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}
         run: |
           patch -d kernel_platform/common/include/linux/atomic -p0 < patches/atomic64_fallback.patch
       - name: Inject atomic64 fallback
