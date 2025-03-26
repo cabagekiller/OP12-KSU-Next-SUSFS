@@ -3153,12 +3153,13 @@ jobs:
 
           echo "✅ Fixed kernel header compilation issues and created atomic-long.h"
 
-      - name: Guard __always_inline in both files
+      - name: Ensure proper __always_inline guard
         run: |
           echo "🔍 Checking for compiler attributes and stddef.h..."
           
-          COMP_ATTR_FILE=$(find common/include/linux -maxdepth 1 -name "compiler*.h" | grep -E 'compiler(_attributes)?\.h' | head -n1)
-          STDDEF_FILE=$(find common/include/uapi/linux -maxdepth 1 -name "stddef.h" | head -n1)
+          # Adjust the path search to account for possible alternative locations
+          COMP_ATTR_FILE=$(find . -type f -name "compiler*.h" | grep -E 'compiler(_attributes)?\.h' | head -n1)
+          STDDEF_FILE=$(find . -type f -name "stddef.h" | head -n1)
       
           if [ -n "$COMP_ATTR_FILE" ] && [ -n "$STDDEF_FILE" ]; then
             echo "✅ Found both files: $COMP_ATTR_FILE and $STDDEF_FILE"
@@ -3168,13 +3169,13 @@ jobs:
             sed -i '/^#ifndef __always_inline/!b;/^#define __always_inline/!b;/^#endif/!s@^@#ifndef __always_inline\
             #define __always_inline inline __attribute__((__always_inline__))\
             #endif@' "$COMP_ATTR_FILE"
-      
+        
             # Ensure we don't define __always_inline in stddef.h if it's already defined in compiler_attributes.h
             echo "🛡️  Guarding in $STDDEF_FILE"
             sed -i '/^#define __always_inline/!b;/^#ifndef __always_inline/!b;/^#endif/!s@^@#ifndef __always_inline\
             #define __always_inline inline\
             #endif@' "$STDDEF_FILE"
-      
+        
             echo "✅ Guarding completed successfully."
           else
             echo "⚠️  Could not find the required files — skipping __always_inline patch."
