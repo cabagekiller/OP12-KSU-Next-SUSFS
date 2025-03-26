@@ -3189,6 +3189,34 @@ jobs:
           echo "✅ __always_inline patching complete."
           grep -Hn '__always_inline' "$COMPILER_H" "$STDDEF_H"
 
+      - name: 🛠️ Patch __always_inline macro redefinition
+        shell: bash
+        run: |
+          echo "🔍 Fixing __always_inline redefinition in common includes..."
+      
+          COMP_ATTR="common/include/linux/compiler_attributes.h"
+          STDDEF="common/include/uapi/linux/stddef.h"
+      
+          # Patch compiler_attributes.h
+          if grep -q '^#define __always_inline' "$COMP_ATTR"; then
+            echo "🛡️  Patching $COMP_ATTR"
+            sed -i '/^#define __always_inline[[:space:]]\+inline __attribute__((__always_inline__))$/{
+              i #ifndef __always_inline
+              a #endif
+            }' "$COMP_ATTR"
+          fi
+      
+          # Patch stddef.h
+          if grep -q '^#define __always_inline' "$STDDEF"; then
+            echo "🛡️  Patching $STDDEF"
+            sed -i '/^#define __always_inline[[:space:]]\+inline$/{
+              i #ifndef __always_inline
+              a #endif
+            }' "$STDDEF"
+          fi
+      
+          echo "✅ __always_inline conflicts patched"
+          grep -Hn '__always_inline' "$COMP_ATTR" "$STDDEF"
 
 
       - name: Build Kernel
