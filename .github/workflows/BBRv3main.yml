@@ -3209,9 +3209,10 @@ jobs:
           
           # Verify the genrule was added
           tail -n 20 "$BUILD_FILE"  # Show the last 20 lines to verify the genrule is added
-      - name: Patch kernel for missing raw_atomic64 functions and ALWAYS_INLINE
+      - name: Patch kernel for missing raw_atomic64_* functions and ALWAYS_INLINE
         run: |
           # Create the patch file for missing raw_atomic64_* functions
+          echo '### Creating the patch for raw_atomic64 functions ###'
           cat << 'EOF' > patches/raw_atomic64_patch.patch
           #include <linux/atomic.h>  # Ensure atomic operations are available
       
@@ -3270,12 +3271,15 @@ jobs:
       
           EOF
       
+          # Check if the patch file is created successfully
+          cat patches/raw_atomic64_patch.patch
+          echo '### Applying the patch ###'
+      
           # Apply the patch
-          git apply patches/raw_atomic64_patch.patch
+          git apply --allow-empty patches/raw_atomic64_patch.patch
       
           # Clean up by removing the patch file
           rm patches/raw_atomic64_patch.patch
-
 
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
