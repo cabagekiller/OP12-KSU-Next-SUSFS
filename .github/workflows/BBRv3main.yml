@@ -3310,9 +3310,9 @@ jobs:
 
       - name: Apply patch for raw_atomic64 and raw_atomic_long functions
         run: |
-          # Apply the patch
-          git apply patches/atomic-long-fix.patch
-
+          # Apply the patch using the 'patch' command
+          patch -p1 < patches/atomic-long-fix.patch
+      
           # Check if the patch was applied successfully
           if [ $? -ne 0 ]; then
             echo "Failed to apply the patch"
