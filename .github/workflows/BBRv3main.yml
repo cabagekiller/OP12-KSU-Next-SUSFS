@@ -3189,15 +3189,34 @@ jobs:
           echo "✅ __always_inline patching complete."
           grep -Hn '__always_inline' "$COMPILER_H" "$STDDEF_H"
 
-      - name: 🛠️ Patch __always_inline macro redefinition
+      - name: 🛠️ Fix or inject __always_inline macro headers
         shell: bash
         run: |
-          echo "🔍 Fixing __always_inline redefinition in common includes..."
+          echo "🔍 Checking and patching __always_inline redefinition..."
       
-          COMP_ATTR="common/include/linux/compiler_attributes.h"
-          STDDEF="common/include/uapi/linux/stddef.h"
+          # Paths
+          COMMON_INCLUDE="kernel_platform/common/include"
+          COMP_ATTR="$COMMON_INCLUDE/linux/compiler_attributes.h"
+          STDDEF="$COMMON_INCLUDE/uapi/linux/stddef.h"
+          UPSTREAM_KERNEL="linux"
       
-          # Patch compiler_attributes.h
+          # Ensure directories exist
+          mkdir -p "$(dirname "$COMP_ATTR")"
+          mkdir -p "$(dirname "$STDDEF")"
+      
+          # Copy compiler_attributes.h if missing
+          if [ ! -f "$COMP_ATTR" ]; then
+            echo "📥 Copying missing compiler_attributes.h from upstream..."
+            find "$UPSTREAM_KERNEL" -path '*/include/linux/compiler_attributes.h' -exec cp {} "$COMP_ATTR" \;
+          fi
+      
+          # Copy stddef.h if missing
+          if [ ! -f "$STDDEF" ]; then
+            echo "📥 Copying missing stddef.h from upstream..."
+            find "$UPSTREAM_KERNEL" -path '*/include/uapi/linux/stddef.h' -exec cp {} "$STDDEF" \;
+          fi
+      
+          # Patch compiler_attributes.h if needed
           if grep -q '^#define __always_inline' "$COMP_ATTR"; then
             echo "🛡️  Patching $COMP_ATTR"
             sed -i '/^#define __always_inline[[:space:]]\+inline __attribute__((__always_inline__))$/{
@@ -3206,7 +3225,7 @@ jobs:
             }' "$COMP_ATTR"
           fi
       
-          # Patch stddef.h
+          # Patch stddef.h if needed
           if grep -q '^#define __always_inline' "$STDDEF"; then
             echo "🛡️  Patching $STDDEF"
             sed -i '/^#define __always_inline[[:space:]]\+inline$/{
@@ -3215,8 +3234,8 @@ jobs:
             }' "$STDDEF"
           fi
       
-          echo "✅ __always_inline conflicts patched"
-          grep -Hn '__always_inline' "$COMP_ATTR" "$STDDEF"
+          echo "✅ __always_inline patch step complete."
+
 
 
       - name: Build Kernel
