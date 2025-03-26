@@ -3185,7 +3185,7 @@ jobs:
 
           echo "✅ __always_inline macro patched (if needed)"
           grep -Hn '__always_inline' "$COMP_ATTR" "$STDDEF" || true
-e
+
             # Step to add genrule to BUILD.bazel for patching __always_inline conflicts
       - name: Add genrule to BUILD.bazel to patch __always_inline conflicts
         run: |
