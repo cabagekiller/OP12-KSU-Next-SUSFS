@@ -3195,8 +3195,8 @@ jobs:
           GENRULE='genrule(
           name = "patch_headers",
           outs = ["patched_compiler_attributes.h", "patched_stddef.h"],
-          cmd = "sed -i '\''/define __always_inline/ i #ifndef __always_inline'\'\' '\''common/include/linux/compiler_attributes.h && sed -i '\''/define __always_inline/ i #ifndef __always_inline'\'\' '\''common/include/uapi/linux/stddef.h'",
-          )'
+          cmd = "sed -i '\''/define __always_inline/ i #ifndef __always_inline'\'' common/include/linux/compiler_attributes.h && sed -i '\''/define __always_inline/ i #ifndef __always_inline'\'' common/include/uapi/linux/stddef.h",
+          )'"
           
           # Check if the genrule already exists, if not, append it
           if ! grep -q "patch_headers" "$BUILD_FILE"; then
