@@ -3309,9 +3309,10 @@ jobs:
           echo '#include "linux/atomic/atomic64_fallback.h"' >> kernel_platform/common/include/linux/kernel.h
 
       - name: Apply atomic long fallbacks patch
-        working-directory: ${{ env.ROOT_DIR }}
         run: |
           patch -p1 < patches/atomic-long-fallbacks-20250326203200.patch
+        working-directory: ${{ env.KERNEL_DIR }}
+
 
 
 
