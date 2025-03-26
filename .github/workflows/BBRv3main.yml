@@ -3281,22 +3281,31 @@ jobs:
           # Clean up by removing the patch file
           rm patches/raw_atomic64_patch.patch
       - name: Inject raw_atomic64 fallback and ALWAYS_INLINE definition
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}
         run: |
           # Ensure target directory exists
           mkdir -p kernel_platform/common/include/linux/atomic
       
-          # Ensure atomic-long.h exists
-          touch kernel_platform/common/include/linux/atomic/atomic-long.h
+          # Only create atomic-long.h if it doesn't already exist
+          if [ ! -f kernel_platform/common/include/linux/atomic/atomic-long.h ]; then
+            touch kernel_platform/common/include/linux/atomic/atomic-long.h
+          fi
       
-          # Append raw_atomic64 fallback definitions
-          cat patches/raw_atomic64_fallback.h >> kernel_platform/common/include/linux/atomic/atomic-long.h
+          # Append fallback definitions only if not already present
+          if ! grep -q "raw_atomic64_add" kernel_platform/common/include/linux/atomic/atomic-long.h; then
+            cat ${{ github.workspace }}/patches/raw_atomic64_fallback.h >> kernel_platform/common/include/linux/atomic/atomic-long.h
+          fi
       
-          # Add ALWAYS_INLINE definition if not present
-          {
-            echo '#ifndef ALWAYS_INLINE'
-            echo '#define ALWAYS_INLINE inline __attribute__((always_inline))'
-            echo '#endif'
-          } >> kernel_platform/common/include/linux/compiler_types.h
+          # Add ALWAYS_INLINE definition only if not already present
+          if ! grep -q "ALWAYS_INLINE" kernel_platform/common/include/linux/compiler_types.h; then
+            {
+              echo ''
+              echo '#ifndef ALWAYS_INLINE'
+              echo '#define ALWAYS_INLINE inline __attribute__((always_inline))'
+              echo '#endif'
+            } >> kernel_platform/common/include/linux/compiler_types.h
+          fi
+
       - name: Patch atomic64 fallbacks
         run: |
           patch -d kernel_platform/common/include/linux/atomic -p0 < patches/atomic64_fallback.patch
@@ -3314,9 +3323,10 @@ jobs:
           cp ${GITHUB_WORKSPACE}/patches/atomic-long-fallbacks-20250326203200.patch ${KERNEL_DIR}/kernel_platform/common/include/linux/atomic/
       
       - name: Apply Atomic Long Fallbacks Patch
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           # Change to the directory where the patch file is copied
-          cd ${KERNEL_DIR}/kernel_platform/common/include/linux/atomic/
+          cd common/include/linux/atomic/
       
           # Apply the patch without needing -p option
           patch < atomic-long-fallbacks-20250326203200.patch
