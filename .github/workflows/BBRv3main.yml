@@ -3311,7 +3311,7 @@ jobs:
       - name: Apply atomic long fallbacks patch
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
-          patch -p2 < ../../../patches/atomic-long-fallbacks-20250326203200.patch
+          patch -p2 < ../../../../../patches/atomic-long-fallbacks-20250326203200.patch
 
 
 
