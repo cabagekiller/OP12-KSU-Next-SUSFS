@@ -1,0 +1,74 @@
+--- a/common/include/linux/atomic/atomic-long.h
++++ b/common/include/linux/atomic/atomic-long.h
+@@ -29,6 +29,10 @@
+ #define __atomic_long_fetch_add(type, op, v) \
+         __atomic_fetch_add((v), (op), __ATOMIC_SEQ_CST)
+ 
++#ifdef CONFIG_BBRV3
++#include <linux/atomic/atomic-fallbacks.h>
++#endif
++
+ static inline long raw_atomic64_add(long i, atomic64_t *v)
+ {
+     return atomic64_add_return(i, v);
+--- /dev/null
++++ b/common/include/linux/atomic/atomic-fallbacks.h
+@@ -0,0 +1,54 @@
++#ifndef _LINUX_ATOMIC_FALLBACKS_H
++#define _LINUX_ATOMIC_FALLBACKS_H
++
++#ifndef ALWAYS_INLINE
++#define ALWAYS_INLINE inline __attribute__((always_inline))
++#endif
++
++static ALWAYS_INLINE long raw_atomic_long_add_return(long i, atomic_long_t *v)
++{
++    atomic_long_t temp = *v;
++    *v += i;
++    return temp;
++}
++
++static ALWAYS_INLINE long raw_atomic64_add_return(long i, atomic64_t *v)
++{
++    atomic64_t temp = *v;
++    atomic64_add(i, v);
++    return temp;
++}
++
++static ALWAYS_INLINE long raw_atomic_long_add_return_acquire(long i, atomic_long_t *v)
++{
++    return raw_atomic_long_add_return(i, v);
++}
++
++static ALWAYS_INLINE long raw_atomic64_add_return_acquire(long i, atomic64_t *v)
++{
++    atomic64_t temp = *v;
++    atomic64_add(i, v);
++    return temp;
++}
++
++static ALWAYS_INLINE long raw_atomic_long_add_return_release(long i, atomic_long_t *v)
++{
++    return raw_atomic_long_add_return(i, v);
++}
++
++static ALWAYS_INLINE long raw_atomic64_add_return_release(long i, atomic64_t *v)
++{
++    atomic64_t temp = *v;
++    atomic64_add(i, v);
++    return temp;
++}
++
++static ALWAYS_INLINE long raw_atomic_long_add_return_relaxed(long i, atomic_long_t *v)
++{
++    return raw_atomic_long_add_return(i, v);
++}
++
++static ALWAYS_INLINE long raw_atomic64_add_return_relaxed(long i, atomic64_t *v)
++{
++    atomic64_t temp = *v;
++    atomic64_add(i, v);
++    return temp;
++}
++
++#endif /* _LINUX_ATOMIC_FALLBACKS_H */
