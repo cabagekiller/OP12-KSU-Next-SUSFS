@@ -235,8 +235,6 @@ jobs:
           echo "✅ Copied all uapi headers from upstream Linux include/uapi/linux"
           mkdir -p common/include/net/netns
           cp upstream-linux/include/net/netns/mib.h common/include/net/netns/mib.h
-          echo "🧹 Cleaning up..."
-          rm -rf upstream-linux
           echo "🎉 Header restoration complete!"
       - name: ♻️ Restore kernel/pgo from Android common kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
@@ -3198,7 +3196,7 @@ jobs:
           COMMON_INCLUDE="kernel_platform/common/include"
           COMP_ATTR="$COMMON_INCLUDE/linux/compiler_attributes.h"
           STDDEF="$COMMON_INCLUDE/uapi/linux/stddef.h"
-          UPSTREAM_KERNEL="linux"
+          UPSTREAM_KERNEL="upstream-linux"
       
           # Ensure directories exist
           mkdir -p "$(dirname "$COMP_ATTR")"
