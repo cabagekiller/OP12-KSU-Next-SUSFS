@@ -1,0 +1,67 @@
+From: Kernel Patch Bot <patch@kernel.dev>
+Date: 2025-03-26
+Subject: [PATCH] Add fallback definitions for raw_atomic64_* and ALWAYS_INLINE
+
+---
+ common/include/linux/atomic/atomic-long.h | 36 +++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)
+
+diff --git a/common/include/linux/atomic/atomic-long.h b/common/include/linux/atomic/atomic-long.h
+index e69de29..f00ba57 100644
+--- a/common/include/linux/atomic/atomic-long.h
++++ b/common/include/linux/atomic/atomic-long.h
+@@
++/* BEGIN FALLBACK PATCH */
++#ifndef ALWAYS_INLINE
++# define ALWAYS_INLINE inline __attribute__((always_inline))
++#endif
++
++#ifndef raw_atomic64_add
++static inline void raw_atomic64_add(long i, atomic64_t *v)
++{
++    atomic64_add(i, v);
++}
++#endif
++
++#ifndef raw_atomic64_add_return
++static inline long raw_atomic64_add_return(long i, atomic64_t *v)
++{
++    return atomic64_add_return(i, v);
++}
++#endif
++
++#ifndef raw_atomic64_add_return_acquire
++static inline long raw_atomic64_add_return_acquire(long i, atomic64_t *v)
++{
++    return atomic64_add_return_acquire(i, v);
++}
++#endif
++
++#ifndef raw_atomic64_add_return_release
++static inline long raw_atomic64_add_return_release(long i, atomic64_t *v)
++{
++    return atomic64_add_return_release(i, v);
++}
++#endif
++
++#ifndef raw_atomic64_add_return_relaxed
++static inline long raw_atomic64_add_return_relaxed(long i, atomic64_t *v)
++{
++    return atomic64_add_return_relaxed(i, v);
++}
++#endif
++
++#ifndef raw_atomic64_fetch_add
++static inline long raw_atomic64_fetch_add(long i, atomic64_t *v)
++{
++    return atomic64_fetch_add(i, v);
++}
++#endif
++
++#ifndef raw_atomic64_fetch_add_acquire
++static inline long raw_atomic64_fetch_add_acquire(long i, atomic64_t *v)
++{
++    return atomic64_fetch_add_acquire(i, v);
++}
++#endif
++/* END FALLBACK PATCH */
