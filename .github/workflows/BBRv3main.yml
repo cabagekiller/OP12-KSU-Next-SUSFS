@@ -3153,11 +3153,12 @@ jobs:
 
       
       - name: 🛠️ Patch __always_inline redefinition
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           echo "🔍 Patching __always_inline macro redefinition..."
       
-          COMP_ATTR="kernel_platform/common/include/linux/compiler_attributes.h"
-          STDDEF="kernel_platform/common/include/uapi/linux/stddef.h"
+          COMP_ATTR="common/include/linux/compiler_attributes.h"
+          STDDEF="common/include/uapi/linux/stddef.h"
 
           echo "Before patching:"
           grep -Hn '^#define __always_inline' "$COMP_ATTR" "$STDDEF" || true
@@ -3185,7 +3186,29 @@ jobs:
           echo "✅ __always_inline macro patched (if needed)"
           grep -Hn '__always_inline' "$COMP_ATTR" "$STDDEF" || true
 
-
+           # Step to add the genrule to the BUILD.bazel file
+      - name: Add genrule to BUILD.bazel to patch __always_inline conflicts
+        run: |
+          BUILD_FILE="BUILD.bazel"
+          
+          # Define the genrule to run patching
+          GENRULE='genrule(
+          name = "patch_headers",
+          outs = ["patched_compiler_attributes.h", "patched_stddef.h"],
+          cmd = "sed -i '\''/define __always_inline/ i #ifndef __always_inline'\'\' '\''common/include/linux/compiler_attributes.h && sed -i '\''/define __always_inline/ i #ifndef __always_inline'\'\' '\''common/include/uapi/linux/stddef.h'",
+          )'
+      
+          # Check if the genrule already exists, if not, append it
+          if ! grep -q "patch_headers" "$BUILD_FILE"; then
+            echo "🔧 Adding genrule to BUILD.bazel"
+            # Add the genrule to the BUILD.bazel file
+            echo "$GENRULE" >> "$BUILD_FILE"
+          else
+            echo "⚠️ Genrule 'patch_headers' already exists in BUILD.bazel"
+          fi
+      
+          # Verify the genrule was added
+          cat "$BUILD_FILE" | tail -n 20  # Show the last 20 lines to verify the genrule is added
 
 
       - name: Build Kernel
