@@ -3330,7 +3330,8 @@ jobs:
           mkdir -p ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common/include/linux/atomic
       
           # Copy the atomic-fallbacks.h file from patches directory to the target location
-          cp patches/include/linux/atomic/atomic-fallbacks.h ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common/include/linux/atomic/
+          cp patches/atomic-fallbacks.h ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common/include/linux/atomic/
+
       
           # Verify if the file was copied correctly
           if [ ! -f "${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common/include/linux/atomic/atomic-fallbacks.h" ]; then
