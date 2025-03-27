@@ -3323,21 +3323,59 @@ jobs:
           # Ensure we're in the correct directory where the file is located
           cp ${GITHUB_WORKSPACE}/patches/atomic-long-fallbacks-20250326203200.patch common/include/linux/atomic/
       
-      - name: Apply Atomic Long Fallbacks Patch
-        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+      # Step 1: Copy atomic-fallbacks.h to the kernel source directory
+      - name: Copy atomic-fallbacks.h to the kernel source directory
         run: |
-          # Change to the directory where the patch file is copied
-          cd common/include/linux/atomic/
+          # Create the necessary directory structure if not already present
+          mkdir -p ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common/include/linux/atomic
       
-          # Apply the patch without needing -p option
-          patch < atomic-long-fallbacks-20250326203200.patch
+          # Copy the atomic-fallbacks.h file from patches directory to the target location
+          cp patches/include/linux/atomic/atomic-fallbacks.h ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common/include/linux/atomic/
+      
+          # Verify if the file was copied correctly
+          if [ ! -f "${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common/include/linux/atomic/atomic-fallbacks.h" ]; then
+            echo "Failed to copy atomic-fallbacks.h"
+            exit 1
+          fi
+      
+      # Step 2: Apply patch to atomic-long.h and related files
+      - name: Apply patch to atomic-long.h and related files
+        run: |
+          # Change to the directory where atomic-long.h exists
+          cd ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common/include/linux/atomic/
+      
+          # Apply the patch to atomic-long.h and any other relevant files
+          patch -p1 < patches/atomic64_fallback.patch
       
           # Check if the patch was applied successfully
           if [ $? -ne 0 ]; then
             echo "Failed to apply the patch"
             exit 1
           fi
-
+      
+      # Step 3: Verify if the patch was applied successfully
+      - name: Verify patch application
+        run: |
+          # Check if the atomic-long.h file contains the CONFIG_BBRV3 directive
+          if grep -q "#ifdef CONFIG_BBRV3" ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common/include/linux/atomic/atomic-long.h; then
+            echo "✅ Patch applied successfully to atomic-long.h"
+          else
+            echo "❌ Patch application failed. #ifdef CONFIG_BBRV3 not found."
+            exit 1
+          fi
+      
+      # Optional Step: Ensure that all necessary files are updated and the build can proceed
+      - name: Ensure files are correctly modified and ready for build
+        run: |
+          # List files in the directory to verify patch changes (optional for debugging)
+          echo "Files after patching:"
+          ls -l ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common/include/linux/atomic/
+      
+          # Ensure that atomic-long.h has the required additions from the patch
+          grep -q "#include <linux/atomic/atomic-fallbacks.h>" ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common/include/linux/atomic/atomic-long.h && \
+          echo "✅ Required #include for atomic-fallbacks.h found." || \
+          (echo "❌ Missing #include for atomic-fallbacks.h in atomic-long.h" && exit 1)
+      
 
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
