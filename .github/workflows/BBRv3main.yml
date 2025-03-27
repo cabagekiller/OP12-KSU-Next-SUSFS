@@ -3311,17 +3311,17 @@ jobs:
         run: |
           patch -p1 < $GITHUB_WORKSPACE/patches/atomic64_fallback.patch
 
-      - name: Inject atomic64 fallback
+      - name: Copy atomic64 fallback header
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
-          cp patches/include/linux/atomic/atomic64_fallback.h kernel_platform/common/include/linux/atomic/
-      
-          # Inject into global build via CPPFLAGS
-          echo '#include "linux/atomic/atomic64_fallback.h"' >> kernel_platform/common/include/linux/kernel.h
+          cp ${{ github.workspace }}/patches/include/linux/atomic/atomic64_fallback.h common/include/linux/atomic/
+
 
       - name: Copy patch to target directory
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           # Ensure we're in the correct directory where the file is located
-          cp ${GITHUB_WORKSPACE}/patches/atomic-long-fallbacks-20250326203200.patch ${KERNEL_DIR}/kernel_platform/common/include/linux/atomic/
+          cp ${GITHUB_WORKSPACE}/patches/atomic-long-fallbacks-20250326203200.patch common/include/linux/atomic/
       
       - name: Apply Atomic Long Fallbacks Patch
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
