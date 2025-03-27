@@ -3306,11 +3306,11 @@ jobs:
             } >> kernel_platform/common/include/linux/compiler_types.h
           fi
 
-      - name: Patch atomic64 fallbacks
+      - name: Apply atomic64 fallback patch
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}
         run: |
-         # Apply the patch from absolute path
-          patch -d kernel_platform/common/include/linux/atomic -p0 < ${{ github.workspace }}/patches/atomic64_fallback.patch
+          patch -p1 < $GITHUB_WORKSPACE/patches/atomic64_fallback.patch
+
       - name: Inject atomic64 fallback
         run: |
           cp patches/include/linux/atomic/atomic64_fallback.h kernel_platform/common/include/linux/atomic/
