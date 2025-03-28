@@ -4,6 +4,7 @@
   #include <linux/compiler.h>
   #include <linux/types.h>
   #include <asm-generic/atomic-long.h>
+  #include <linux/atomic.h>
 
 #ifndef raw_atomic64_read
         static inline s64 raw_atomic64_read(const atomic64_t *v) { return atomic64_read(v); }
