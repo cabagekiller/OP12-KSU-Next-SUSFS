@@ -1582,39 +1582,38 @@ jobs:
       - name: 🔧 Ensure compiler types header exists
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
-          set -euo pipefail # Keep for safety
-          # Create compiler_types.h if missing (needed for __native_word)
+          set -euo pipefail
           COMPILER_TYPES="common/include/linux/compiler_types.h"
           if [ ! -f "$COMPILER_TYPES" ]; then
             echo "Creating minimal $COMPILER_TYPES..."
             mkdir -p $(dirname "$COMPILER_TYPES")
             cat << 'EOF' > "$COMPILER_TYPES"
-            #ifndef _LINUX_COMPILER_TYPES_H
-            #define _LINUX_COMPILER_TYPES_H
-  
-            #ifndef __ASSEMBLY__
-            #ifdef __CHECKER__
-            # define __user         __attribute__((noderef, address_space(1)))
-            # define __kernel       __attribute__((address_space(0)))
-            // Add other definitions as needed, copying from a known kernel version
-            #else
-            # define __user
-            # define __kernel
-            #endif /* __CHECKER__ */
-            #endif /* __ASSEMBLY__ */
-  
-            // Minimal definition needed for compiletime_assert_atomic_type
-            #define __native_word(t) (sizeof(t) == sizeof(long))
-  
-            #endif /* _LINUX_COMPILER_TYPES_H */
-            EOF
-            echo "✅ Minimal $COMPILER_TYPES created."
+          #ifndef _LINUX_COMPILER_TYPES_H
+          #define _LINUX_COMPILER_TYPES_H
+          
+          #ifndef __ASSEMBLY__
+          #ifdef __CHECKER__
+          # define __user         __attribute__((noderef, address_space(1)))
+          # define __kernel       __attribute__((address_space(0)))
+          // Add other definitions as needed, copying from a known kernel version
+          #else
+          # define __user
+          # define __kernel
+          #endif /* __CHECKER__ */
+          #endif /* __ASSEMBLY__ */
+          
+          // Minimal definition needed for compiletime_assert_atomic_type
+          #define __native_word(t) (sizeof(t) == sizeof(long))
+          
+          #endif /* _LINUX_COMPILER_TYPES_H */
+          EOF
+          # ^ This EOF must have the same indentation level as the 'cat << EOF ...' line above it.
+          #   It should NOT be indented further like the lines inside the here-doc.
+
+          echo "✅ Minimal $COMPILER_TYPES created."
           else
             echo "ℹ️ $COMPILER_TYPES already exists."
           fi
-  
-          # --- Removed verification/copying of atomic-long.h ---
-          # --- Removed verification/copying of atomic-raw64-compat.h ---
       - name: 🔧 Fix atomic operations and compiler definitions
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
