@@ -3332,6 +3332,8 @@ jobs:
       
           # Copy the atomic-fallbacks.h file from patches directory to the target location
           cp patches/atomic-fallbacks.h ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common/include/linux/atomic/
+          cp patches/arch_atomic_long_fallback.h kernel_platform/common/include/linux/atomic/
+          cp patches/raw_atomic64_fallback.h kernel_platform/common/include/linux/atomic/
 
       
           # Verify if the file was copied correctly
