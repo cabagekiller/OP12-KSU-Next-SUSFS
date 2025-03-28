@@ -1,12 +1,13 @@
-#ifndef _LINUX_ATOMIC_LONG_H
+  #ifndef _LINUX_ATOMIC_LONG_H
   #define _LINUX_ATOMIC_LONG_H
   
   #include <linux/compiler.h>
   #include <linux/types.h>
   #include <asm-generic/atomic-long.h>
   #include <linux/atomic.h>
+  #include <asm/atomic.h> 
 
-#ifndef raw_atomic64_read
+  #ifndef raw_atomic64_read
         static inline s64 raw_atomic64_read(const atomic64_t *v) { return atomic64_read(v); }
         #endif
         #ifndef raw_atomic64_read_acquire
