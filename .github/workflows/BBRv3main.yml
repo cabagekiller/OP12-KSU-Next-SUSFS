@@ -3346,7 +3346,7 @@ jobs:
           cd ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common/include/linux/atomic/
       
           # Apply the patch to atomic-long.h and any other relevant files
-          patch -p1 < atomic64_fallback.patch
+          #patch -p1 < atomic64_fallback.patch
           patch -p1 < atomic-long-fallbacks-20250326203200.patch
       
           # Check if the patch was applied successfully
