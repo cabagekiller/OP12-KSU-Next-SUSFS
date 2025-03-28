@@ -3340,20 +3340,11 @@ jobs:
           fi
       
       # Step 2: Apply patch to atomic-long.h and related files
-      - name: Apply patch to atomic-long.h and related files
+      - name: Apply atomic-long fallback patch
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
-          # Change to the directory where atomic-long.h exists
-          cd ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common/include/linux/atomic/
-      
-          # Apply the patch to atomic-long.h and any other relevant files
-          #patch -p1 < atomic64_fallback.patch
-          patch -p1 < atomic-long-fallbacks-20250326203200.patch
-      
-          # Check if the patch was applied successfully
-          if [ $? -ne 0 ]; then
-            echo "Failed to apply the patch"
-            exit 1
-          fi
+          patch -p1 < $GITHUB_WORKSPACE/patches/atomic-long-fallbacks-20250326203200.patch
+
       
       # Step 3: Verify if the patch was applied successfully
       - name: Verify patch application
