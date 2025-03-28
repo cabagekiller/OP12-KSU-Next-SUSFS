@@ -1,11 +1,14 @@
-  #ifndef _LINUX_ATOMIC_LONG_H
-  #define _LINUX_ATOMIC_LONG_H
-  
-  #include <linux/compiler.h>
-  #include <linux/types.h>
-  #include <asm-generic/atomic-long.h>
-  #include <linux/atomic.h>
-  #include <asm/atomic.h> 
+ #ifndef _LINUX_ATOMIC_LONG_H
+#define _LINUX_ATOMIC_LONG_H
+
+#include <linux/compiler.h>
+#include <linux/types.h>
+#include <asm-generic/atomic-long.h>
+#include <linux/atomic.h>
+#include <asm/atomic.h>
+
+// --- Start of weak raw_atomic64_* definitions ---
+#ifndef COMPILE_TEST // <<<=== ADD GUARD HERE
 
   #ifndef raw_atomic64_read
         static inline s64 raw_atomic64_read(const atomic64_t *v) { return atomic64_read(v); }
@@ -258,6 +261,8 @@
   typedef atomic64_t atomic_long_t;
   #define ATOMIC_LONG_INIT(i)       ATOMIC64_INIT(i)
   #define ATOMIC_LONG_PFX(x)        atomic64##x
+#ifndef COMPILE_TEST // <<<=== ADD GUARD HERE TOO? (May or may not be needed)
+
   
   /* 64-bit atomic_long operations (wrap raw_atomic64_*) */
   static inline long raw_atomic_long_read(const atomic_long_t *v) { return raw_atomic64_read(v); }
