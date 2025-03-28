@@ -2971,6 +2971,7 @@ jobs:
           #include <linux/types.h>
           #include <asm-generic/atomic-long.h>
           #include <linux/atomic/atomic-raw64-compat.h>
+          #include <linux/atomic/atomic-fallbacks.h>
 
           #ifdef CONFIG_64BIT
           typedef atomic64_t atomic_long_t;
@@ -3343,31 +3344,7 @@ jobs:
       - name: Apply atomic-long fallback patch
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
-          patch -p1 < $GITHUB_WORKSPACE/patches/atomic-long-fallbacks-20250326203200.patch
-
-      
-      # Step 3: Verify if the patch was applied successfully
-      - name: Verify patch application
-        run: |
-          # Check if the atomic-long.h file contains the CONFIG_BBRV3 directive
-          if grep -q "#ifdef CONFIG_BBRV3" ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common/include/linux/atomic/atomic-long.h; then
-            echo "✅ Patch applied successfully to atomic-long.h"
-          else
-            echo "❌ Patch application failed. #ifdef CONFIG_BBRV3 not found."
-            exit 1
-          fi
-      
-      # Optional Step: Ensure that all necessary files are updated and the build can proceed
-      - name: Ensure files are correctly modified and ready for build
-        run: |
-          # List files in the directory to verify patch changes (optional for debugging)
-          echo "Files after patching:"
-          ls -l ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common/include/linux/atomic/
-      
-          # Ensure that atomic-long.h has the required additions from the patch
-          grep -q "#include <linux/atomic/atomic-fallbacks.h>" ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/common/include/linux/atomic/atomic-long.h && \
-          echo "✅ Required #include for atomic-fallbacks.h found." || \
-          (echo "❌ Missing #include for atomic-fallbacks.h in atomic-long.h" && exit 1)
+          #patch -p1 < $GITHUB_WORKSPACE/patches/atomic-long-fallbacks-20250326203200.patch
       
 
       - name: Build Kernel
