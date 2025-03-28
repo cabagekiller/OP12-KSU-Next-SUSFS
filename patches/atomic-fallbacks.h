@@ -4,6 +4,9 @@
 #ifndef ALWAYS_INLINE
 #define ALWAYS_INLINE inline __attribute__((always_inline))
 #endif
+#include <linux/atomic/arch_atomic_long_fallback.h>
+#include <linux/atomic/raw_atomic64_fallback.h>
+
 
 static ALWAYS_INLINE long raw_atomic_long_add_return(long i, atomic_long_t *v)
 {
