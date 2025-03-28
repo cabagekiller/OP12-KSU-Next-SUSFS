@@ -623,17 +623,8 @@ jobs:
           find common/arch/arm64/include/asm/ -name "*.h" -print0 | xargs -0 sed -i 's/:  :  "i"(&((char \\*)key)\\[branch\\]) :  : l_yes);/:  :  "i"(&((char \\*)key)\\[branch\\]) :  : l_yes);)/g'
           sed -i 's/static atomic_long_read/atomic_long_read/g' common/include/linux/atomic/atomic-instrumented.h
           sed -i 's/static atomic_long_cmpxchg_release/atomic_long_cmpxchg_release/g' common/include/linux/atomic/atomic-instrumented.h
-      - name: 🔧 Include raw64 compat header in atomic_ll_sc.h
-        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
-        run: |
-          HEADER_FILE="common/arch/arm64/include/asm/atomic_ll_sc.h"
-          grep -q 'atomic-raw64-compat.h' "$HEADER_FILE" || \
-            sed -i '/atomic-long.h/a #include <linux/atomic/atomic-raw64-compat.h>' "$HEADER_FILE"
 
-      - name: 📥 Copy fallback header into kernel tree
-        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
-        run: |
-          cp $GITHUB_WORKSPACE/patches/atomic-raw64-compat.h common/include/linux/atomic/
+
       - name: 🪛 Inject fallback headers for BBRv3 support
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
@@ -1076,23 +1067,6 @@ jobs:
             exit 1
           fi
 
-      - name: 🚚 Copy patched atomic-raw64-compat.h
-        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
-        run: |
-          set -euo pipefail
-          DEST_DIR="common/include/linux/atomic"
-          SOURCE_FILE="$GITHUB_WORKSPACE/patches/atomic-raw64-compat.h"
-  
-          if [[ -f "$SOURCE_FILE" ]]; then
-            echo "Copying $SOURCE_FILE to $DEST_DIR/..."
-            mkdir -p "$DEST_DIR"
-            cp -v "$SOURCE_FILE" "$DEST_DIR/"
-            echo "✅ Patched atomic-raw64-compat.h copied."
-          else
-            echo "Error: Source file $SOURCE_FILE not found!" >&2
-            exit 1
-          fi
-
       - name: 🛠️ Fix SELinux headers and compiler definitions
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
@@ -1227,42 +1201,6 @@ jobs:
           #endif /* _ASM_GENERIC_ATOMIC_LONG_H */
           EOF
       
-          # Create atomic-raw64-compat.h with proper atomic64 fallbacks
-          ATOMIC_RAW64="common/include/linux/atomic/atomic-raw64-compat.h"
-          mkdir -p $(dirname "$ATOMIC_RAW64")
-          cat << 'EOF' > "$ATOMIC_RAW64"
-          #ifndef _LINUX_ATOMIC_RAW64_COMPAT_H
-          #define _LINUX_ATOMIC_RAW64_COMPAT_H
-      
-          #include <linux/types.h>
-          #include <linux/compiler.h>
-          #include <asm-generic/atomic-long.h>
-      
-          /* Fallback implementations for raw_atomic64_* functions */
-          static inline s64 raw_atomic64_read(const atomic64_t *v)
-          {
-              return v->counter;
-          }
-      
-          static inline s64 raw_atomic64_read_acquire(const atomic64_t *v)
-          {
-              return smp_load_acquire(&v->counter);
-          }
-      
-          static inline void raw_atomic64_set(atomic64_t *v, s64 i)
-          {
-              v->counter = i;
-          }
-      
-          static inline void raw_atomic64_set_release(atomic64_t *v, s64 i)
-          {
-              smp_store_release(&v->counter, i);
-          }
-      
-          /* Add more atomic operations as needed... */
-      
-          #endif /* _LINUX_ATOMIC_RAW64_COMPAT_H */
-          EOF
       
           # Fix SELinux headers
           CLASSMAP="common/security/selinux/include/classmap.h"
@@ -1277,11 +1215,6 @@ jobs:
           sed -i '1i #include <stdlib.h>\n#include <string.h>' "$GENHEADERS"
           sed -i 's/^void usage(void)/static void usage(void)/' "$GENHEADERS"
       
-          # Ensure proper includes in atomic.h
-          ATOMIC_H="common/include/linux/atomic.h"
-          if ! grep -q "atomic-raw64-compat.h" "$ATOMIC_H"; then
-            sed -i '1i #include <linux/atomic/atomic-raw64-compat.h>' "$ATOMIC_H"
-          fi
       
           echo "✅ Atomic operations and compiler definitions fixed"
       - name: Fix Kernel Headers and Atomics
@@ -1369,194 +1302,6 @@ jobs:
           FTRACE_FILE="common/include/linux/compiler.h"
           [ -f "$FTRACE_FILE" ] && sed -i 's/struct ftrace_likely_data \*f/void \*f/' "$FTRACE_FILE"
 
-          # 3. Create atomic-long.h (using ALWAYS_INLINE)
-          mkdir -p common/include/linux/atomic
-          cat << EOF > common/include/linux/atomic/atomic-long.h
-          #ifndef _LINUX_ATOMIC_LONG_H
-          #define _LINUX_ATOMIC_LONG_H
-
-          #include <linux/compiler.h>
-          #include <linux/types.h>
-          #include <asm-generic/atomic-long.h>
-          #include <linux/atomic/atomic-raw64-compat.h>
-          #include <linux/atomic/atomic-fallbacks.h>
-
-          #ifdef CONFIG_64BIT
-          typedef atomic64_t atomic_long_t;
-          #define ATOMIC_LONG_INIT(i)        ATOMIC64_INIT(i)
-          #else
-          typedef atomic_t atomic_long_t;
-          #define ATOMIC_LONG_INIT(i)        ATOMIC_INIT(i)
-          #endif
-
-            // Use ALWAYS_INLINE (our custom macro)
-            static inline long raw_atomic_long_read(const atomic_long_t *v)
-            {
-                return raw_atomic64_read(v);
-            }
-
-            static inline void raw_atomic_long_set(atomic_long_t *v, long i)
-            {
-                raw_atomic64_set(v,i);
-            }
-
-            static inline void raw_atomic_long_add(long i, atomic_long_t *v)
-            {
-                raw_atomic64_add(i,v);
-            }
-            static ALWAYS_INLINE long raw_atomic_long_add_return(long i, atomic_long_t *v)
-            {
-                return raw_atomic64_add_return(i,v);
-            }
-             static ALWAYS_INLINE long raw_atomic_long_add_return_acquire(long i, atomic_long_t *v)
-            {
-                return raw_atomic64_add_return_acquire(i,v);
-            }
-             static ALWAYS_INLINE long raw_atomic_long_add_return_release(long i, atomic_long_t *v)
-            {
-                return raw_atomic64_add_return_release(i,v);
-            }
-             static ALWAYS_INLINE long raw_atomic_long_add_return_relaxed(long i, atomic_long_t *v)
-            {
-                return raw_atomic64_add_return_relaxed(i,v);
-            }
-            static ALWAYS_INLINE long raw_atomic_long_fetch_add(long i, atomic_long_t *v)
-            {
-                return raw_atomic64_fetch_add(i,v);
-            }
-            static ALWAYS_INLINE long raw_atomic_long_fetch_add_acquire(long i, atomic_long_t *v)
-            {
-                return raw_atomic64_fetch_add_acquire(i,v);
-            }
-            static ALWAYS_INLINE long raw_atomic_long_fetch_add_release(long i, atomic_long_t *v)
-            {
-                return raw_atomic64_fetch_add_release(i,v);
-            }
-             static ALWAYS_INLINE long raw_atomic_long_fetch_add_relaxed(long i, atomic_long_t *v)
-            {
-                return raw_atomic64_fetch_add_relaxed(i,v);
-            }
-            static inline void raw_atomic_long_sub(long i, atomic_long_t *v)
-            {
-                raw_atomic64_sub(i,v);
-            }
-            static ALWAYS_INLINE long raw_atomic_long_sub_return(long i, atomic_long_t *v)
-            {
-               return  raw_atomic64_sub_return(i,v);
-            }
-             static ALWAYS_INLINE long raw_atomic_long_sub_return_acquire(long i, atomic_long_t *v)
-            {
-               return  raw_atomic64_sub_return_acquire(i,v);
-            }
-             static ALWAYS_INLINE long raw_atomic_long_sub_return_release(long i, atomic_long_t *v)
-            {
-               return raw_atomic64_sub_return_release(i,v);
-            }
-             static ALWAYS_INLINE long raw_atomic_long_sub_return_relaxed(long i, atomic_long_t *v)
-            {
-                return raw_atomic64_sub_return_relaxed(i,v);
-            }
-            static ALWAYS_INLINE long raw_atomic_long_fetch_sub(long i, atomic_long_t *v)
-            {
-                return raw_atomic64_fetch_sub(i,v);
-            }
-             static ALWAYS_INLINE long raw_atomic_long_fetch_sub_acquire(long i, atomic_long_t *v)
-            {
-                return raw_atomic64_fetch_sub_acquire(i,v);
-            }
-            static ALWAYS_INLINE long raw_atomic_long_fetch_sub_release(long i, atomic_long_t *v)
-            {
-                return raw_atomic64_fetch_sub_release(i,v);
-            }
-            static ALWAYS_INLINE long raw_atomic_long_fetch_sub_relaxed(long i, atomic_long_t *v)
-            {
-               return raw_atomic64_fetch_sub_relaxed(i,v);
-            }
-            static inline void raw_atomic_long_inc(atomic_long_t *v)
-            {
-                raw_atomic64_inc(v);
-            }
-            static ALWAYS_INLINE long raw_atomic_long_inc_return(atomic_long_t *v){
-                return raw_atomic64_inc_return(v);
-            }
-            static ALWAYS_INLINE long raw_atomic_long_fetch_inc(atomic_long_t *v){
-               return raw_atomic64_fetch_inc(v);
-            }
-            static inline void raw_atomic_long_dec(atomic_long_t *v)
-            {
-              raw_atomic64_dec(v);
-            }
-            static ALWAYS_INLINE long raw_atomic_long_dec_return(atomic_long_t *v){
-                return raw_atomic64_dec_return(v);
-            }
-            static ALWAYS_INLINE long raw_atomic_long_fetch_dec(atomic_long_t *v){
-                return raw_atomic64_fetch_dec(v);
-            }
-            static inline void raw_atomic_long_and(long i, atomic_long_t *v){
-                raw_atomic64_and(i,v);
-            }
-            static ALWAYS_INLINE long raw_atomic_long_fetch_and(long i, atomic_long_t *v){
-               return raw_atomic64_fetch_and(i,v);
-            }
-            static inline void raw_atomic_long_andnot(long i, atomic_long_t *v){
-                raw_atomic64_andnot(i,v);
-            }
-             static ALWAYS_INLINE long raw_atomic_long_fetch_andnot(long i, atomic_long_t *v){
-               return  raw_atomic64_fetch_andnot(i,v);
-            }
-            static inline void raw_atomic_long_or(long i, atomic_long_t *v){
-                raw_atomic64_or(i,v);
-            }
-            static ALWAYS_INLINE long raw_atomic_long_fetch_or(long i, atomic_long_t *v){
-                return raw_atomic64_fetch_or(i,v);
-            }
-            static inline void raw_atomic_long_xor(long i, atomic_long_t *v){
-                raw_atomic64_xor(i,v);
-            }
-            static ALWAYS_INLINE long raw_atomic_long_fetch_xor(long i, atomic_long_t *v){
-               return raw_atomic64_fetch_xor(i,v);
-            }
-            static ALWAYS_INLINE long raw_atomic_long_xchg(atomic_long_t *v, long new){
-             return raw_atomic64_xchg(v,new);
-            }
-            static ALWAYS_INLINE long raw_atomic_long_cmpxchg(atomic_long_t *v, long old, long new){
-             return raw_atomic64_cmpxchg(v,old,new);
-            }
-            static ALWAYS_INLINE bool raw_atomic_long_try_cmpxchg(atomic_long_t *v, long *old, long new){
-            return  raw_atomic64_try_cmpxchg(v,old,new);
-            }
-            static inline bool raw_atomic_long_sub_and_test(long i, atomic_long_t *v){
-                return raw_atomic64_sub_and_test(i,v);
-            }
-             static inline bool raw_atomic_long_dec_and_test(atomic_long_t *v){
-                return raw_atomic64_dec_and_test(v);
-            }
-            static inline bool raw_atomic_long_inc_and_test(atomic_long_t *v){
-                return raw_atomic64_inc_and_test(v);
-            }
-             static inline bool raw_atomic_long_add_negative(long i, atomic_long_t *v){
-                return raw_atomic64_add_negative(i,v);
-            }
-            static inline long raw_atomic_long_fetch_add_unless(atomic_long_t *v, long a, long u){
-                return raw_atomic64_fetch_add_unless(v,a,u);
-            }
-            static inline bool raw_atomic_long_add_unless(atomic_long_t *v, long a, long u){
-                return raw_atomic64_add_unless(v,a,u);
-            }
-             static inline bool raw_atomic_long_inc_not_zero(atomic_long_t *v){
-                return raw_atomic64_inc_not_zero(v);
-            }
-            static inline bool raw_atomic_long_inc_unless_negative(atomic_long_t *v){
-                return raw_atomic64_inc_unless_negative(v);
-            }
-            static inline bool raw_atomic_long_dec_unless_positive(atomic_long_t *v){
-                return raw_atomic64_dec_unless_positive(v);
-            }
-            static inline long raw_atomic_long_dec_if_positive(atomic_long_t *v){
-             return raw_atomic64_dec_if_positive(v);
-            }
-          #endif
-          EOF
 
           echo "✅ Fixed kernel header compilation issues and created atomic-long.h"
 
@@ -1618,77 +1363,8 @@ jobs:
           
           # Verify the genrule was added
           tail -n 20 "$BUILD_FILE"  # Show the last 20 lines to verify the genrule is added
-      - name: Patch kernel for missing raw_atomic64_* functions and ALWAYS_INLINE
-        run: |
-          # Create the patch file for missing raw_atomic64_* functions
-          echo '### Creating the patch for raw_atomic64 functions ###'
-          cat << 'EOF' > patches/raw_atomic64_patch.patch
-          #include <linux/atomic.h>  # Ensure atomic operations are available
-      
-          #ifndef ALWAYS_INLINE
-          #define ALWAYS_INLINE inline __attribute__((always_inline))  # Define ALWAYS_INLINE if not already defined
-          #endif
-      
-          # Define missing raw_atomic64_* functions if not already available
-          #define raw_atomic64_add(i, v) atomic_add((i), (v))
-          #define raw_atomic64_add_return(i, v) atomic_add_return((i), (v))
-          #define raw_atomic64_add_return_acquire(i, v) atomic_add_return_acquire((i), (v))
-          #define raw_atomic64_add_return_release(i, v) atomic_add_return_release((i), (v))
-          #define raw_atomic64_add_return_relaxed(i, v) atomic_add_return_relaxed((i), (v))
-      
-          # Define the functions used in the file as inline functions
-          static ALWAYS_INLINE long raw_atomic_long_add_return(long i, atomic_long_t *v)
-          {
-              return raw_atomic64_add_return(i, v);
-          }
-      
-          static ALWAYS_INLINE long raw_atomic_long_add_return_acquire(long i, atomic_long_t *v)
-          {
-              return raw_atomic64_add_return_acquire(i, v);
-          }
-      
-          static ALWAYS_INLINE long raw_atomic_long_add_return_release(long i, atomic_long_t *v)
-          {
-              return raw_atomic64_add_return_release(i, v);
-          }
-      
-          static ALWAYS_INLINE long raw_atomic_long_add_return_relaxed(long i, atomic_long_t *v)
-          {
-              return raw_atomic64_add_return_relaxed(i, v);
-          }
-      
-          # Repeat for fetch_add, if needed:
-          static ALWAYS_INLINE long raw_atomic_long_fetch_add(long i, atomic_long_t *v)
-          {
-              return raw_atomic64_fetch_add(i, v);
-          }
-      
-          static ALWAYS_INLINE long raw_atomic_long_fetch_add_acquire(long i, atomic_long_t *v)
-          {
-              return raw_atomic64_fetch_add_acquire(i, v);
-          }
-      
-          static ALWAYS_INLINE long raw_atomic_long_fetch_add_release(long i, atomic_long_t *v)
-          {
-              return raw_atomic64_fetch_add_release(i, v);
-          }
-      
-          static ALWAYS_INLINE long raw_atomic_long_fetch_add_relaxed(long i, atomic_long_t *v)
-          {
-              return raw_atomic64_fetch_add_relaxed(i, v);
-          }
-      
-          EOF
-      
-          # Check if the patch file is created successfully
-          cat patches/raw_atomic64_patch.patch
-          echo '### Applying the patch ###'
-      
-          # Apply the patch
-          git apply --allow-empty patches/raw_atomic64_patch.patch
-      
-          # Clean up by removing the patch file
-          rm patches/raw_atomic64_patch.patch
+
+         
       - name: Inject raw_atomic64 fallback and ALWAYS_INLINE definition
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}
         run: |
