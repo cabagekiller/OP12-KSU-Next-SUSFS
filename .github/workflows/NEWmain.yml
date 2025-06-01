@@ -20,6 +20,17 @@ jobs:
         with:
           fetch-depth: 0  # Important for submodules
 
+      - name: Initial Disk Usage Check
+        run: |
+          echo "===== Initial Disk Usage Report ====="
+          echo "--- Overall Disk Usage (df -h) ---"
+          df -h
+          echo "--- Workspace Root Usage (du -sh ${{ github.workspace }}) ---"
+          du -sh "${{ github.workspace }}" || echo "Workspace dir not found or du failed."
+          echo "--- Home Directory Usage (du -sh ~) ---"
+          du -sh ~ || echo "Home dir not found or du failed."
+          echo "============================="
+
       - name: Free Disk Space & Update APT
         run: |
           set -euxo pipefail
@@ -32,32 +43,117 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             python3-pip curl git zip unzip gcc g++ make ninja-build file bc bison flex libssl-dev libelf-dev wget \
             build-essential python3-dev python3-setuptools rsync ccache
+      - name: Disk Usage After APT Deps
+        run: |
+          echo "===== Disk Usage Report After APT Deps ====="
+          echo "--- Overall Disk Usage (df -h) ---"
+          df -h
+          echo "--- Workspace Root Usage (du -sh ${{ github.workspace }}) ---"
+          du -sh "${{ github.workspace }}" || echo "Workspace dir not found or du failed."
+          echo "--- Home Directory Usage (du -sh ~) ---"
+          du -sh ~ || echo "Home dir not found or du failed."
+          echo "============================="
       - name: Cache ccache
         uses: actions/cache@v4
         with:
           path: ~/.ccache
-          key: ${{ runner.os }}-ccache-${{ hashFiles('**/CMakeLists.txt') }}
+          key: ${{ runner.os }}-ccache-${{ hashFiles('**/CMakeLists.txt') }}-${{ github.sha }} # Added github.sha for more specific caching
+          restore-keys: |
+            ${{ runner.os }}-ccache-
 
+      - name: Cache Pahole Installation
+        id: cache-pahole
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/pahole_install
+          key: ${{ runner.os }}-pahole-install-dir-v2 # Incremented version
       - name: Install Latest Pahole
+        if: steps.cache-pahole.outputs.cache-hit != 'true'
         run: |
           set -euxo pipefail
-          sudo apt-get remove --purge -y dwarves
-          sudo apt-get install -y git build-essential libdw-dev zlib1g-dev
-          git clone --recurse-submodules https://git.kernel.org/pub/scm/devel/pahole/pahole.git
-          cd pahole
-          cmake .
-          sudo make install
+          # It's better to remove dwarves if it might conflict, even if installing from source
+          sudo apt-get remove --purge -y dwarves || echo "dwarves not found or failed to remove, continuing."
+          # Ensure build dependencies for pahole are present
+          sudo apt-get update # Update list since this is a conditional step
+          sudo apt-get install -y git build-essential libdw-dev zlib1g-dev cmake
+
+          PAHOLE_SRC_DIR="${{ runner.temp }}/pahole_src"
+          rm -rf "${PAHOLE_SRC_DIR}" # Clean up previous attempts if any
+          git clone --depth 1 --recurse-submodules https://git.kernel.org/pub/scm/devel/pahole/pahole.git "${PAHOLE_SRC_DIR}"
+          cd "${PAHOLE_SRC_DIR}"
+          mkdir build && cd build
+          cmake -DCMAKE_INSTALL_PREFIX=${{ runner.temp }}/pahole_install ..
+          make -j$(nproc)
+          make install
+          echo "Pahole installed to ${{ runner.temp }}/pahole_install/bin"
+          # Cleanup pahole source directory
+          cd .. # Back to PAHOLE_SRC_DIR parent
+          rm -rf "${PAHOLE_SRC_DIR}"
+          echo "Cleaned up ${PAHOLE_SRC_DIR}"
+        # Always add to path if installed, or if restored from cache where it would be expected
+      - name: Add Pahole to PATH & Check Disk Usage
+        run: |
+          echo "${{ runner.temp }}/pahole_install/bin" >> $GITHUB_PATH
+          # Verify installation (optional)
+          pahole --version || echo "Pahole not found or version check failed."
+          echo "===== Disk Usage Report After Pahole Install ====="
+          echo "--- Overall Disk Usage (df -h) ---"
+          df -h
+          echo "--- Workspace Root Usage (du -sh ${{ github.workspace }}) ---"
+          du -sh "${{ github.workspace }}" || echo "Workspace dir not found or du failed."
+          echo "--- Home Directory Usage (du -sh ~) ---"
+          du -sh ~ || echo "Home dir not found or du failed."
+          echo "--- Runner Temp Usage (du -sh ${{ runner.temp }}) ---"
+          du -sh "${{ runner.temp }}" || echo "Runner temp dir not found or du failed."
+          echo "============================="
+
+      - name: Cache Python Packages
+        id: cache-pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-cache-${{ hashFiles('**/requirements.txt') }}-${{ github.run_id }} # Use github.run_id to ensure fresh cache for each run if no reqs.txt
+          restore-keys: |
+            ${{ runner.os }}-pip-cache-
+      - name: Cache Repo Tool
+        id: cache-repo
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.HOME }}/bin/repo
+          key: ${{ runner.os }}-repo-tool-stable-v2 # Incremented version
       - name: Setup Python and Repo Tool
         run: |
           set -euxo pipefail
           python3 -m pip install --upgrade pip
+          # The pip cache step should handle caching, pip will use it automatically
           pip3 install gitpython xmltodict
+
+          # Repo tool installation
           mkdir -p "$HOME/bin"
-          wget -O "$HOME/bin/repo" https://storage.googleapis.com/git-repo-downloads/repo
-          chmod a+x "$HOME/bin/repo"
+          if [ ! -f "$HOME/bin/repo" ]; then
+            echo "Repo tool not found in cache or at path, downloading..."
+            wget -O "$HOME/bin/repo" https://storage.googleapis.com/git-repo-downloads/repo
+            chmod a+x "$HOME/bin/repo"
+          else
+            echo "Repo tool found at $HOME/bin/repo (likely cached)."
+            # Ensure it's executable if restored from cache without permissions
+            chmod a+x "$HOME/bin/repo"
+          fi
           echo "$HOME/bin" >> $GITHUB_PATH
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
+      - name: Disk Usage After Python/Repo Setup
+        run: |
+          echo "===== Disk Usage Report After Python/Repo Setup ====="
+          echo "--- Overall Disk Usage (df -h) ---"
+          df -h
+          echo "--- Workspace Root Usage (du -sh ${{ github.workspace }}) ---"
+          du -sh "${{ github.workspace }}" || echo "Workspace dir not found or du failed."
+          echo "--- Home Directory Usage (du -sh ~) ---"
+          du -sh ~ || echo "Home dir not found or du failed."
+          echo "--- $HOME/bin Usage (du -sh $HOME/bin) ---"
+          du -sh "$HOME/bin" || echo "$HOME/bin not found or du failed."
+          echo "============================="
       - name: Configure Build Directory
         id: build_dir
         run: |
@@ -68,13 +164,67 @@ jobs:
           echo "BUILD_DIR=${BUILD_DIR}" >> $GITHUB_ENV
           mkdir -p "${BUILD_DIR}"
           echo "Build directory set to ${BUILD_DIR}"
+
+      - name: Cache AnyKernel3 Repository
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.BUILD_DIR }}/AnyKernel3
+          key: ${{ runner.os }}-AnyKernel3-gki-2.0-v1
+      - name: Cache susfs4ksu Repository
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.BUILD_DIR }}/susfs4ksu
+          key: ${{ runner.os }}-susfs4ksu-gki-android14-6.1-v1
+      - name: Cache kernel_patches Repository
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.BUILD_DIR }}/kernel_patches
+          key: ${{ runner.os }}-kernel_patches-default-v1
+
       - name: Clone Required Repositories
         working-directory: ${{ env.BUILD_DIR }}
         run: |
           set -euxo pipefail
-          git clone --recursive https://github.com/WildKernels/AnyKernel3.git -b gki-2.0
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
-          git clone https://github.com/cabagekiller/kernel_patches.git
+          echo "Cloning AnyKernel3..."
+          if [ ! -d "AnyKernel3" ]; then
+            git clone --depth 1 --no-tags https://github.com/WildKernels/AnyKernel3.git -b gki-2.0 AnyKernel3
+            cd AnyKernel3
+            # git submodule update --init --recursive # AnyKernel3 typically doesn't need this for its purpose here
+            cd ..
+          else
+            echo "AnyKernel3 directory found, skipping clone (likely cached)."
+            # Optional: ensure submodules are initialized if restored from a cache that didn't preserve them fully.
+            # cd AnyKernel3 && git submodule update --init --recursive && cd ..
+          fi
+
+          echo "Cloning susfs4ksu..."
+          if [ ! -d "susfs4ksu" ]; then
+            git clone --depth 1 --no-tags https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1 susfs4ksu
+          else
+            echo "susfs4ksu directory found, skipping clone (likely cached)."
+          fi
+
+          echo "Cloning kernel_patches..."
+          if [ ! -d "kernel_patches" ]; then
+            git clone --depth 1 --no-tags https://github.com/cabagekiller/kernel_patches.git kernel_patches
+          else
+            echo "kernel_patches directory found, skipping clone (likely cached)."
+          fi
+      - name: Disk Usage After Cloning External Repos
+        working-directory: ${{ env.BUILD_DIR }}
+        run: |
+          echo "===== Disk Usage Report After Cloning External Repos ====="
+          echo "--- Overall Disk Usage (df -h) ---"
+          df -h
+          echo "--- Workspace Root Usage (du -sh ${{ github.workspace }}) ---"
+          du -sh "${{ github.workspace }}" || echo "Workspace dir not found or du failed."
+          echo "--- Home Directory Usage (du -sh ~) ---"
+          du -sh ~ || echo "Home dir not found or du failed."
+          echo "--- Build Directory Usage (${{ env.BUILD_DIR }}) (du -sh .) ---"
+          du -sh .
+          echo "--- Build Directory Contents (${{ env.BUILD_DIR }}) (du -sh ./*) ---"
+          du -sh ./*
+          echo "============================="
       - name: Setup Kernel Source
         working-directory: ${{ env.BUILD_DIR }}
         run: |
@@ -93,45 +243,81 @@ jobs:
           done
           [ $? -ne 0 ] && { echo "Repo sync failed after multiple attempts."; exit 1; }
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
+      - name: Disk Usage After Kernel Source Sync
+        working-directory: ${{ env.BUILD_DIR }}
+        run: |
+          echo "===== Disk Usage Report After Kernel Source Sync ====="
+          echo "--- Overall Disk Usage (df -h) ---"
+          df -h
+          echo "--- Workspace Root Usage (du -sh ${{ github.workspace }}) ---"
+          du -sh "${{ github.workspace }}" || echo "Workspace dir not found or du failed."
+          echo "--- Home Directory Usage (du -sh ~) ---"
+          du -sh ~ || echo "Home dir not found or du failed."
+          echo "--- Build Directory Usage (${{ env.BUILD_DIR }}) (du -sh .) ---"
+          du -sh .
+          echo "--- Build Directory Contents (${{ env.BUILD_DIR }}) (du -sh ./*) ---"
+          du -sh ./*
+          if [ -n "${{ env.KERNEL_DIR }}" ] && [ -d "${{ env.KERNEL_DIR }}" ]; then
+            echo "--- Kernel Source Directory Detailed Usage (${{ env.KERNEL_DIR }}) (du -sh ./${{ env.KERNEL_DIR }}) ---"
+            du -sh "./${{ env.KERNEL_DIR }}"
+          fi
+          echo "============================="
       - name: Setup KernelSU (Submodule Integration)
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
+          # The following line fetches and executes the latest KernelSU setup script.
+          # For reproducible builds, consider downloading this script, versioning it in your repository,
+          # and executing the local copy. Or, cache the downloaded script.
+          # However, for setups intending to always use the 'next' version, this is standard.
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-dev
+
+          echo "Ensuring KernelSU submodules are updated..."
           git submodule update --init --recursive
           cd KernelSU-Next/kernel
           KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" Makefile
-      - name: Setup SUSFS
+      - name: Setup SUSFS and Apply Patches
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
-          SUSFS_PATCHES="../../../susfs4ksu/kernel_patches"
-          KERNEL_PATCHES="../../../kernel_patches"
-          KSU_NEXT="KernelSU-Next"
-          mkdir -p ./common/fs ./common/include/linux
-          cp "${SUSFS_PATCHES}/fs/"* ./common/fs/
-          cp "${SUSFS_PATCHES}/include/linux/"* ./common/include/linux/
-          #cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
-          cp "${SUSFS_PATCHES}/50_add_susfs_in_gki-android14-6.1.patch" ./common/
-          cp "${KERNEL_PATCHES}/69_hide_stuff.patch" ./common/
-          cp "${KERNEL_PATCHES}/next/next_hooks.patch" ./common/
-          cp "${KERNEL_PATCHES}/next/syscall_hooks.patch" ./common/
-          #cp "${KERNEL_PATCHES}/0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch" "${KSU_NEXT}/"
-          cd "${KSU_NEXT}"
-          #patch -p1 --forward < 0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch || echo "Warning: KernelSU SUSFS patch may have been already applied or failed."
-          cd ../common
-          patch -p1 -F 3 < syscall_hooks.patch
-          #patch -p1 --forward < next_hooks.patch || echo "Warning: KernelSU SUSFS patch may have been already applied or failed."
-          patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || echo "Warning: SUSFS patch may have been already applied."
-          patch -p1 -F 3 < 69_hide_stuff.patch || echo "Warning: 69_hide_stuff patch may have been already applied."
-          
-          #sed -i '/obj-$(CONFIG_KSU_SUSFS_SUS_SU) += sus_su.o/d' ./fs/Makefile
-          git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)" || true)
-          cd ..
-          git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)" || true)
-          git rm --cached KernelSU-Next || true
+          echo "Running SUSFS and patches setup script..."
+          # The script is located at .github/scripts/setup_susfs_and_patches.sh
+          # It needs to be called from the main repo root, or adjust path.
+          # Current working-directory is already kernel_platform, script is designed for this.
+          bash ../../../.github/scripts/setup_susfs_and_patches.sh
+
+      - name: Disk Usage Before Kernel Build
+        run: |
+          echo "===== Disk Usage Report Before Kernel Build ====="
+          echo "--- Overall Disk Usage (df -h) ---"
+          df -h
+          echo "--- Workspace Root Usage (du -sh ${{ github.workspace }}) ---"
+          du -sh "${{ github.workspace }}" || echo "Workspace dir not found or du failed."
+          echo "--- Home Directory Usage (du -sh ~) ---"
+          du -sh ~ || echo "Home dir not found or du failed."
+          if [ -n "${{ env.BUILD_DIR }}" ] && [ -d "${{ env.BUILD_DIR }}" ]; then
+            echo "--- Build Directory Usage (${{ env.BUILD_DIR }}) (du -sh ${{ env.BUILD_DIR }}) ---"
+            du -sh "${{ env.BUILD_DIR }}"
+            echo "--- Build Directory Contents (${{ env.BUILD_DIR }}) (du -sh ${{ env.BUILD_DIR }}/*) ---"
+            du -sh "${{ env.BUILD_DIR }}"/*
+          fi
+          if [ -d "~/.cache/bazel" ]; then
+            echo "--- Bazel Cache Directory Usage (~/.cache/bazel) (du -sh ~/.cache/bazel) ---"
+            du -sh ~/.cache/bazel
+          fi
+          echo "============================="
+      - name: Cache Bazel Build Data
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/bazel
+            ~/.bazel # Potentially contains Bazel version specific data or user config
+          key: ${{ runner.os }}-bazelcache-v1-${{ github.workflow }}-${{ hashFiles('**/BUILD', '**/WORKSPACE', '**/*.bzl', '.github/workflows/NEWmain.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-bazelcache-v1-${{ github.workflow }}-
+
       - name: Configure Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
@@ -173,23 +359,32 @@ jobs:
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           
-          echo "Running sed commands..."
+          echo "Running sed commands for kernel source modifications..."
 
+          # Configure LTO (Link Time Optimization) settings
+          echo "Applying LTO configurations..."
           sed -i 's/CONFIG_LTO=n/CONFIG_LTO=y/' "./common/arch/arm64/configs/gki_defconfig"
           sed -i 's/CONFIG_LTO_CLANG_FULL=y/CONFIG_LTO_CLANG_THIN=y/' "./common/arch/arm64/configs/gki_defconfig"
           sed -i 's/CONFIG_LTO_CLANG_NONE=y/CONFIG_LTO_CLANG_THIN=y/' "./common/arch/arm64/configs/gki_defconfig"
           
-          # Run sed commands for modifications
-          sed -i 's/check_defconfig//' ./common/build.config.gki
+          # Branding: Append "-Cabage" to version strings in various setlocalversion scripts
+          echo "Branding version strings..."
           sed -i '$s|echo "\$res"|echo "\$res-Cabage"|' ./common/scripts/setlocalversion
           sed -i '$s|echo "\$res"|echo "\$res-Cabage"|' ./msm-kernel/scripts/setlocalversion
           sed -i '$s|echo "\$res"|echo "\$res-Cabage"|' ./external/dtc/scripts/setlocalversion
+
+          # Clean version status: Remove "-maybe-dirty" and "-dirty" suffixes
+          echo "Cleaning version status strings..."
           sed -i "/stable_scmversion_cmd/s/-maybe-dirty//g" ./build/kernel/kleaf/impl/stamp.bzl
           sed -i 's/-dirty//' ./common/scripts/setlocalversion
           sed -i 's/-dirty//' ./msm-kernel/scripts/setlocalversion
           sed -i 's/-dirty//' ./external/dtc/scripts/setlocalversion
-          sed -i 's/-dirty//' ./build/kernel/kleaf/workspace_status_stamp.py || echo "No workspace_status_stamp.py!"
+          sed -i 's/-dirty//' ./build/kernel/kleaf/workspace_status_stamp.py || echo "Warning: workspace_status_stamp.py not found or -dirty tag not present."
+          # Note: The 'sed -i 's/check_defconfig//' ./common/build.config.gki' command was removed from this step
+          # as a more specific version ('2s/check_defconfig//') is already present in the "Configure Kernel" step.
 
+          # OPlus specific modifications
+          echo "Applying OPlus specific modifications..."
           sed -i '/echo "LTO $LTO "/i export LTO=thin' ./oplus/build/oplus_setup.sh
           sed -i 's/export REPACK_IMG=true/export REPACK_IMG=false/g' ./oplus/build/oplus_setup.sh
 
@@ -200,6 +395,11 @@ jobs:
           mkdir -p out
           start_time=$(date +%s)
           export PATH="/usr/lib/ccache:$PATH"
+          # Ensure build_with_bazel.py utilizes Bazel's local disk caching.
+          # This is typically enabled by default in Bazel.
+          # For advanced scenarios, consider configuring Bazel to use a specific output_base
+          # within the workspace (e.g., ${{ github.workspace }}/.bazel_cache_dir)
+          # and caching that directory if ~/.cache/bazel proves too broad or slow.
           ./build_with_bazel.py \
             -t pineapple gki \
             --jobs="$(nproc --all)" --verbose_failures --config=stamp \
@@ -208,6 +408,34 @@ jobs:
           end_time=$(date +%s)
           build_time=$((end_time - start_time))
           echo "Kernel build time: $build_time seconds"
+      - name: Disk Usage After Kernel Build
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          echo "===== Disk Usage Report After Kernel Build ====="
+          echo "--- Overall Disk Usage (df -h) ---"
+          df -h
+          echo "--- Workspace Root Usage (du -sh ${{ github.workspace }}) ---"
+          du -sh "${{ github.workspace }}" || echo "Workspace dir not found or du failed."
+          echo "--- Home Directory Usage (du -sh ~) ---"
+          du -sh ~ || echo "Home dir not found or du failed."
+          echo "--- Build Directory Usage (${{ env.BUILD_DIR }}) (du -sh ${{ env.BUILD_DIR }}) ---"
+          du -sh "${{ env.BUILD_DIR }}"
+          echo "--- Kernel Platform Directory Usage (du -sh .) ---"
+          du -sh .
+          echo "--- Kernel out/dist Directory Usage (du -sh out/dist) ---"
+          du -sh out/dist || echo "out/dist not found or du failed."
+          echo "--- Kernel out Directory Usage (du -sh out) ---"
+          du -sh out || echo "out not found or du failed."
+          if [ -d "~/.cache/bazel" ]; then
+            echo "--- Bazel Cache Directory Usage (~/.cache/bazel) (du -sh ~/.cache/bazel) ---"
+            du -sh ~/.cache/bazel
+          fi
+          echo "============================="
+          echo "Further cleanup of the kernel source directory (${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}) could be performed here if space is critical."
+          echo "However, ensure no files are needed for subsequent packaging, release steps, or debug artifact generation."
+          # Example cleanup (BE VERY CAREFUL, ensure 'out/dist/Image' is already copied):
+          # rm -rf !(out) # Removes everything except 'out' directory
+          # Or more selectively: rm -rf common msm-kernel external etc.
       - name: Create ZIP Package
         working-directory: ${{ env.BUILD_DIR }}
         run: |
@@ -221,6 +449,22 @@ jobs:
           zip -r "../$ZIP_NAME" ./*
           ls -lh "../$ZIP_NAME"
           echo "zip_name=$ZIP_NAME" >> $GITHUB_ENV
+      - name: Disk Usage After Creating Zip
+        run: |
+          echo "===== Disk Usage Report After Creating Zip ====="
+          echo "--- Overall Disk Usage (df -h) ---"
+          df -h
+          echo "--- Workspace Root Usage (du -sh ${{ github.workspace }}) ---"
+          du -sh "${{ github.workspace }}" || echo "Workspace dir not found or du failed."
+          echo "--- Home Directory Usage (du -sh ~) ---"
+          du -sh ~ || echo "Home dir not found or du failed."
+          if [ -n "${{ env.BUILD_DIR }}" ] && [ -d "${{ env.BUILD_DIR }}" ]; then
+            echo "--- Build Directory Usage (${{ env.BUILD_DIR }}) (du -sh ${{ env.BUILD_DIR }}) ---"
+            du -sh "${{ env.BUILD_DIR }}"
+            echo "--- Build Directory Contents (${{ env.BUILD_DIR }}) (du -sh ${{ env.BUILD_DIR }}/*) ---"
+            du -sh "${{ env.BUILD_DIR }}"/*
+          fi
+          echo "============================="
       - name: Set current timestamp
         id: timestamp
         run: echo "CURRENT_TIMESTAMP=$(date -u +'%Y.%m.%d-%H%M%S')" >> $GITHUB_ENV
