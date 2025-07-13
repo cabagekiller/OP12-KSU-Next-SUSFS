@@ -118,7 +118,7 @@ jobs:
           cp "${KERNEL_PATCHES}/69_hide_stuff.patch" ./common/
           cp "${KERNEL_PATCHES}/next/scope_min_manual_hooks_v1.4.patch" ./common/
           cp "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_apk_sign.c.patch" "${KSU_NEXT}/"
-          cp "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_apk_rules.c.patch" "${KSU_NEXT}/"
+          cp "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_rules.c.patch" "${KSU_NEXT}/"
           cp "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_core_hook.c.patch" "${KSU_NEXT}/"
           
           cp "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_selinux.c.patch" "${KSU_NEXT}/"
