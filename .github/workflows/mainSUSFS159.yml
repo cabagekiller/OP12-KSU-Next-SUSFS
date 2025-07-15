@@ -121,7 +121,7 @@ jobs:
           cp "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_rules.c.patch" "${KSU_NEXT}/"
           cp "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_core_hook.c.patch" "${KSU_NEXT}/"
           cp "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_selinux.c.patch" "${KSU_NEXT}/"
-          cp "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_seucompat.c.patch" "${KSU_NEXT}/"
+          cp "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_sucompat.c.patch" "${KSU_NEXT}/"
           
           cp "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_ksud.c.patch" "${KSU_NEXT}/"
           #cp "${KERNEL_PATCHES}/next/0001-kernel-implement-susfs-v1.5.8-KernelSU-Next-v1.0.8.patch" "${KSU_NEXT}/"
