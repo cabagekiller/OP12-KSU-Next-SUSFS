@@ -99,8 +99,7 @@ jobs:
           set -euxo pipefail
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
           git submodule update --init --recursive
-          cd KernelSU-Next
-          git checkout 3fd61e0ee5ee5e6fe941a892924ac26aa752b618          
+          cd KernelSU-Next          
           cd kernel
           KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
@@ -124,7 +123,7 @@ jobs:
           cp "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_core_hook.c.patch" "${KSU_NEXT}/"
           cp "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_selinux.c.patch" "${KSU_NEXT}/"
           cp "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_sucompat.c.patch" "${KSU_NEXT}/"
-          
+          cp "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_kernel_compat.c.patch" "${KSU_NEXT}/"
           cp "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_ksud.c.patch" "${KSU_NEXT}/"
           #cp "${KERNEL_PATCHES}/next/0001-kernel-implement-susfs-v1.5.8-KernelSU-Next-v1.0.8.patch" "${KSU_NEXT}/"
           cd "${KSU_NEXT}"
@@ -135,6 +134,7 @@ jobs:
           patch -p1 --forward --fuzz=3 < fix_ksud.c.patch
           patch -p1 --forward --fuzz=3 < fix_rules.c.patch
           patch -p1 --forward --fuzz=3 < fix_sucompat.c.patch
+          patch -p1 --forward --fuzz=3 < fix_kernel_compat.c.patch
           #patch -p1 --forward < 0001-kernel-implement-susfs-v1.5.8-KernelSU-Next-v1.0.8.patch || echo "Warning: KernelSU SUSFS patch may have been already applied or failed."
           cd ../common
           patch -p1 -F 3 < scope_min_manual_hooks_v1.4.patch
