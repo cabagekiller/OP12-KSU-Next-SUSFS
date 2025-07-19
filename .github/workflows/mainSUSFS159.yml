@@ -190,6 +190,19 @@ jobs:
           # Remove defconfig check
           sed -i '2s/check_defconfig//' ./common/build.config.gki
 
+      - name: Add BBR Support
+        run: |
+          
+          echo "Adding configuration settings to gki_defconfig..."
+          echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_TCP_CONG_BBR=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_TCP_CONG_BIC=n" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_TCP_CONG_HTCP=n" >> ./common/arch/arm64/configs/gki_defconfig
+          
+          echo "CONFIG_NET_SCH_FQ=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_NET_SCH_FQ_CODEL=y" >> ./common/arch/arm64/configs/gki_defconfig
+
       - name: Run sed and perl Commands
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
