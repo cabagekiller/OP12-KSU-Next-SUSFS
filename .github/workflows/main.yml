@@ -116,42 +116,25 @@ jobs:
           git commit -m "Update KernelSU-Next submodule to latest on next-susfs" # Commit submodule update
           # NO PUSH HERE - let the action handle pushing at the end if needed
       - name: Setup SUSFS in Kernel
-        working-directory: ${{ github.workspace }} # Work in the ROOT of your repo
+        working-directory: ${{ github.workspace }}/${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
-          SUSFS_PATCHES=/home/runner/work/kernesunextsusfs/kernesunextsusfs/builds/OP12-A15-cabage-release/susfs4ksu/kernel_patches  # Absolute paths
-          KERNEL_PATCHES=/home/runner/work/kernesunextsusfs/kernesunextsusfs/builds/OP12-A15-cabage-release/kernel_patches        # Absolute paths
-          KSU_NEXT="kernel_platform/KernelSU-Next"    # Now relative to github.workspace
-          # No need to remove KSU_NEXT, as it's part of your repository.
-          #cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
-          #cp "${KERNEL_PATCHES}/0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch" "${KSU_NEXT}/"
-          cd "${KSU_NEXT}"
-          #patch -p1 --forward < 0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch || true
-          cd ../../
-          cd "${BUILD_DIR}/"
-          pwd  # Print the working directory after the cd
-          ls -la # list the files in the directory
-          cd "${KERNEL_DIR}/"
-          cd kernel_platform
-          #cp "${SUSFS_PATCHES}/fs/sus_su.c" ./common/fs/
-          cp "${SUSFS_PATCHES}/fs/susfs.c" ./common/fs/
-          #cp "${SUSFS_PATCHES}/include/linux/sus_su.h" ./common/include/linux/
-          cp "${SUSFS_PATCHES}/include/linux/susfs.h" ./common/include/linux/
-          cp "${SUSFS_PATCHES}/include/linux/susfs_def.h" ./common/include/linux/
-          cp "${SUSFS_PATCHES}/50_add_susfs_in_gki-android14-6.1.patch" ./common/
-          cp "${KERNEL_PATCHES}/69_hide_stuff.patch" ./common/
-          cp "${KERNEL_PATCHES}/next/next_hooks.patch" ./common/
+          SUSFS_PATCHES_DIR="${{ github.workspace }}/${{ env.BUILD_DIR }}/susfs4ksu/kernel_patches"
+          KERNEL_PATCHES_DIR="${{ github.workspace }}/${{ env.BUILD_DIR }}/kernel_patches"
+
+          cp "${SUSFS_PATCHES_DIR}/fs/susfs.c" ./common/fs/
+          cp "${SUSFS_PATCHES_DIR}/include/linux/susfs.h" ./common/include/linux/
+          cp "${SUSFS_PATCHES_DIR}/include/linux/susfs_def.h" ./common/include/linux/
+          cp "${SUSFS_PATCHES_DIR}/50_add_susfs_in_gki-android14-6.1.patch" ./common/
+          cp "${KERNEL_PATCHES_DIR}/69_hide_stuff.patch" ./common/
+          cp "${KERNEL_PATCHES_DIR}/next/next_hooks.patch" ./common/
+
           cd common
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
           patch -p1 -F 3 < 69_hide_stuff.patch || true
           patch -p1 --forward < next_hooks.patch || true
-          #sed -i '/obj-\$\(CONFIG_KSU_SUSFS_SUS_SU\) += sus_su.o/d' /home/runner/work/kernesunextsusfs/kernesunextsusfs/builds/OP12-A15-cabage-release/kernel_platform/oneplus12_v/kernel_platform/common/fs/Makefile
-          #git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)" || true)
-          #cd ..
-          #git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)" || true)
-          #git rm --cached KernelSU-Next || true
       - name: Configure Kernel
-        working-directory: /home/runner/work/kernesunextsusfs/kernesunextsusfs/builds/OP12-A15-cabage-release/kernel_platform/oneplus12_v/kernel_platform  # Inside your repo
+        working-directory: ${{ github.workspace }}/${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
            set -euxo pipefail
             # Add SUSFS configuration settings
@@ -191,7 +174,7 @@ jobs:
            # --- END VERIFICATION ---
            sed -i '/check_defconfig/d' ./common/build.config.gki
       - name: Build Kernel
-        working-directory: /home/runner/work/kernesunextsusfs/kernesunextsusfs/builds/OP12-A15-cabage-release/kernel_platform/oneplus12_v/kernel_platform # Inside your repo
+        working-directory: ${{ github.workspace }}/${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
           mkdir -p out
@@ -206,13 +189,13 @@ jobs:
           build_time=$((end_time - start_time))
           echo "Kernel build time: $build_time seconds"
       - name: Create ZIP Package
-        working-directory: /home/runner/work/kernesunextsusfs/kernesunextsusfs/builds/OP12-A15-cabage-release
+        working-directory: ${{ github.workspace }}/${{ env.BUILD_DIR }}
         run: |
           set -euxo pipefail
           cd AnyKernel3 || exit 1
           ZIP_NAME="Cabage-OP12-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
           echo "Creating zip file $ZIP_NAME..."
-          cp /home/runner/work/kernesunextsusfs/kernesunextsusfs/builds/OP12-A15-cabage-release/kernel_platform/oneplus12_v/kernel_platform/out/dist/Image . || { echo "Error copying Image file"; exit 1; }
+          cp ../${{ env.KERNEL_DIR }}/kernel_platform/out/dist/Image . || { echo "Error copying Image file"; exit 1; }
           zip -r "../$ZIP_NAME" ./* || { echo "Error creating zip"; exit 1; }
           ls -lh "../$ZIP_NAME"
           echo "zip_name=$ZIP_NAME" >> $GITHUB_ENV
@@ -227,7 +210,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: /home/runner/work/kernesunextsusfs/kernesunextsusfs/builds/OP12-A15-cabage-release/${{ env.zip_name }}
+          files: ${{ github.workspace }}/${{ env.BUILD_DIR }}/${{ env.zip_name }}
           tag_name: ${{ env.KSUVER }}-${{ env.ROOT_DIR_PREFIX }}
           name: Release ${{ env.ROOT_DIR_PREFIX }} ${{ env.zip_name }}
           body: |
@@ -240,7 +223,7 @@ jobs:
         with:
           name: build-logs
           path: |
-            ${{ github.workspace }}/kernel_platform/out/*.log
-            ${{ github.workspace }}/kernel_platform/**/*.rej
+            ${{ github.workspace }}/${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/out/*.log
+            ${{ github.workspace }}/${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/**/*.rej
           retention-days: 5
           if-no-files-found: warn
