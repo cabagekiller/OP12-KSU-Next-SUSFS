@@ -1,0 +1,179 @@
+name: Build and Release Kernel23
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+  ROOT_DIR_PREFIX: "OP12-A15"
+  BRANCH: "android14-6.1"
+  KBUILD_BUILD_USER: "Cabage"
+  KBUILD_BUILD_HOST: "Github"
+
+jobs:
+  build-kernel:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Needed for creating releases
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: Free Up Disk Space
+        run: |
+          set -euxo pipefail
+          # Remove large packages and assets to free up space on the runner
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo docker image prune -a -f
+          # Use the utility script from Kou to free up more space
+          curl -fsSL https://raw.githubusercontent.com/kou/arrow/e49d8ae15583ceff03237571569099a6ad62be32/ci/scripts/util_free_space.sh | sudo bash
+
+      - name: Install Build Dependencies
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bc bison build-essential ccache curl file flex g++ gcc git libelf-dev libssl-dev make ninja-build \
+            python3 python3-dev python3-pip python3-setuptools rsync unzip wget zip
+
+      - name: Install Latest Pahole (BTF)
+        run: |
+          set -euxo pipefail
+          # Pahole is required for BTF generation, which is needed by some kernel features
+          sudo apt-get remove --purge -y dwarves || true
+          git clone --depth=1 https://git.kernel.org/pub/scm/devel/pahole/pahole.git
+          cd pahole
+          cmake -B build .
+          sudo cmake --build build --target install
+          cd .. && rm -rf pahole
+
+      - name: Install Google Repo Tool
+        run: |
+          set -euxo pipefail
+          mkdir -p "$HOME/bin"
+          wget -O "$HOME/bin/repo" https://storage.googleapis.com/git-repo-downloads/repo
+          chmod a+x "$HOME/bin/repo"
+          echo "$HOME/bin" >> $GITHUB_PATH
+
+      - name: Configure Git User
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+
+      - name: Set Up Build Directory
+        id: setup_dirs
+        run: |
+          set -euxo pipefail
+          BUILD_DIR="${GITHUB_WORKSPACE}/build"
+          echo "BUILD_DIR=${BUILD_DIR}" >> $GITHUB_ENV
+          mkdir -p "${BUILD_DIR}"
+          echo "Build directory created at ${BUILD_DIR}"
+
+      - name: Sync Kernel Source
+        working-directory: ${{ env.BUILD_DIR }}
+        run: |
+          set -euxo pipefail
+          # Initialize and sync the kernel source from OnePlus repositories
+          repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus12_v.xml --depth=1 --git-lfs
+          # Retry sync to handle potential network issues
+          for i in $(seq 1 3); do
+            repo sync -c -j"$(nproc)" --force-sync --no-clone-bundle --no-tags && break
+            echo "Repo sync failed (Attempt $i/3). Retrying in 60s..."
+            sleep 60
+          done
+          # Clean up unnecessary large files
+          rm -rf kernel_platform/common/android/abi_gki_protected_exports_*
+
+      - name: Clone External Patch Repositories
+        working-directory: ${{ env.BUILD_DIR }}
+        run: |
+          set -euxo pipefail
+          git clone --depth=1 https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
+          git clone --depth=1 https://github.com/cabagekiller/kernel_patches.git
+
+      - name: Apply Patches and Configure Kernel
+        env:
+          BUILD_DIR: ${{ env.BUILD_DIR }}
+        run: |
+          set -euxo pipefail
+          echo "Making scripts executable..."
+          chmod +x scripts/apply_patches.sh
+          chmod +x scripts/configure_kernel.sh
+
+          echo "Applying kernel patches..."
+          ./scripts/apply_patches.sh
+
+          echo "Configuring kernel..."
+          ./scripts/configure_kernel.sh
+
+      - name: Build Kernel with Bazel
+        working-directory: ${{ env.BUILD_DIR }}/kernel_platform/oneplus12_v/kernel_platform
+        run: |
+          set -euxo pipefail
+          # Enable ccache for faster builds
+          export PATH="/usr/lib/ccache:$PATH"
+          ccache -M 50G # Set max cache size
+          ccache -z # Clear statistics
+
+          ./build_with_bazel.py \
+            -t pineapple gki \
+            --jobs="$(nproc --all)" \
+            --verbose_failures \
+            --config=stamp \
+            --user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom \
+            --ignore_missing_projects -o "$(pwd)/out"
+
+          ccache -s # Print cache statistics
+
+      - name: Package Kernel into Flashable Zip
+        id: package
+        run: |
+          set -euxo pipefail
+          # Clone AnyKernel3 for packaging
+          AK3_DIR="${GITHUB_WORKSPACE}/AnyKernel3"
+          git clone --depth=1 https://github.com/TheWildJames/AnyKernel3.git -b gki-2.0 "${AK3_DIR}"
+
+          # Copy the built kernel Image
+          cp "${BUILD_DIR}/kernel_platform/oneplus12_v/kernel_platform/out/dist/Image" "${AK3_DIR}/"
+
+          # Create the zip file
+          cd "${AK3_DIR}"
+          ZIP_NAME="CabageKernel-SUSFS-${{ env.ROOT_DIR_PREFIX }}-$(date +%Y%m%d-%H%M).zip"
+          zip -r9 "../${ZIP_NAME}" . -x ".git/*" "README.md"
+          echo "ZIP_PATH=${GITHUB_WORKSPACE}/${ZIP_NAME}" >> $GITHUB_OUTPUT
+          echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_OUTPUT
+          cd ..
+
+      - name: Create GitHub Release (on Tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.package.outputs.ZIP_PATH }}
+          name: ${{ github.ref_name }} | ${{ env.ROOT_DIR_PREFIX }}
+          body: |
+            ## Automated Kernel Release
+            **Device:** ${{ env.ROOT_DIR_PREFIX }}
+            **KernelSU Version:** $(cd kernel_platform/KernelSU-Next/kernel && git describe --tags --abbrev=0)
+            **Timestamp:** $(date -u)
+
+            Flashable zip containing the built kernel Image.
+
+      - name: Upload Artifact (on Push/PR)
+        if: (!startsWith(github.ref, 'refs/tags/'))
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.ZIP_NAME }}
+          path: ${{ steps.package.outputs.ZIP_PATH }}
+          retention-days: 7
