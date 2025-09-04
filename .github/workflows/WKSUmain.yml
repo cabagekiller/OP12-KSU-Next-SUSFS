@@ -98,7 +98,7 @@ jobs:
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
-          #curl -LSs "https://raw.githubusercontent.com/WildKernels/Wild_KSU/wild/kernel/setup.sh" | bash -s wild
+          git clone -b wild https://github.com/WildKernels/KernelSU.git Wild_KSU
           git submodule update --init --recursive
           mv "${{ github.workspace }}/Wild_KSU" .
           cd Wild_KSU          
