@@ -23,9 +23,9 @@ jobs:
 
       - name: Free Disk Space & Update APT
         run: |
-          set -euxo pipefail
+          #set -euxo pipefail
           sudo apt-get update -qq && sudo apt-get install -qq curl
-          curl -fsSL https://raw.githubusercontent.com/kou/arrow/e49d8ae15583ceff03237571569099a6ad62be32/ci/scripts/util_free_space.sh | bash
+          #curl -fsSL https://raw.githubusercontent.com/kou/arrow/e49d8ae15583ceff03237571569099a6ad62be32/ci/scripts/util_free_space.sh | bash
       - name: Setup Build Environment
         run: |
           set -euxo pipefail
@@ -59,7 +59,6 @@ jobs:
           echo "$HOME/bin" >> $GITHUB_PATH
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
-          git config --global credential.https://github.com.helper ''
       - name: Configure Build Directory
         id: build_dir
         run: |
@@ -99,7 +98,7 @@ jobs:
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
-          git clone -b wild https://github.com/WildKernels/KernelSU.git Wild_KSU
+          git -c credential.helper= clone -b wild https://github.com/WildKernels/KernelSU.git Wild_KSU
           git submodule update --init --recursive
           mv "${{ github.workspace }}/Wild_KSU" .
           cd Wild_KSU          
