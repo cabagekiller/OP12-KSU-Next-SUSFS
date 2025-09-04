@@ -15,18 +15,16 @@ env:
   DEBIAN_FRONTEND: noninteractive
   ROOT_DIR_PREFIX: "OP12-A15"
   BRANCH: "android14-6.1"
-  CCACHE_DIR: ${{ runner.temp }}/.ccache
-  CCACHE_MAXSIZE: 15G
-  CCACHE_COMPRESS: 1
-  # bazel cache folders (keep under HOME to improve hit rate across runs)
-  BAZEL_USER_ROOT: ${{ runner.temp }}/.bazel
-  # Pin a pahole commit (optional) if you need a known working version:
-  PAHOLE_COMMIT: ""  # e.g. "v1.26"; leave empty for latest
-
+  
 jobs:
   build-release:
     runs-on: ubuntu-latest
-
+    env:
+      CCACHE_DIR: ${{ runner.temp }}/.ccache
+      CCACHE_MAXSIZE: 15G
+      CCACHE_COMPRESS: 1
+      BAZEL_USER_ROOT: ${{ runner.temp }}/.bazel
+      
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
