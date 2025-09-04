@@ -202,14 +202,8 @@ jobs:
           KSU_VERSION=$((COMMITS + BASE_VERSION))
           echo "KSUVER=${KSU_VERSION}" | tee -a $GITHUB_ENV
 
-          # Integrate DKSU_VERSION into Makefile robustly:
-          # - If DKSU_VERSION=... exists, replace the value.
-          # - Else, append a define at EOF so builds pick it up.
-          if grep -qE '^[[:space:]]*DKSU_VERSION[[:space:]]*[:+]?=' Makefile; then
-            sed -i -E "s/^[[:space:]]*DKSU_VERSION[[:space:]]*[:+]?=.*/DKSU_VERSION:=${KSU_VERSION}/" Makefile
-          else
-            printf '\n# Injected by CI\nDKSU_VERSION:=%s\n' "${KSU_VERSION}" >> Makefile
-          fi
+          sed -i "s/DKSU_VERSION=[0-9]*/DKSU_VERSION=${KSU_VERSION}/" Makefile
+
 
       - name: Configure Kernel (defconfig edits)
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
