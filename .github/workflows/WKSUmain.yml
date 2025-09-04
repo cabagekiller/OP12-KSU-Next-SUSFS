@@ -59,6 +59,7 @@ jobs:
           echo "$HOME/bin" >> $GITHUB_PATH
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
+          git config --global credential.https://github.com.helper ''
       - name: Configure Build Directory
         id: build_dir
         run: |
