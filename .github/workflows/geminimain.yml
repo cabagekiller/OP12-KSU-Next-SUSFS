@@ -122,7 +122,7 @@ jobs:
           DRIVER_KCONFIG=$DRIVER_DIR/Kconfig
           
           # Clone the full KernelSU repository using the git protocol to avoid auth issues
-          git clone -b wild git://github.com/WildKernels/KernelSU.git Wild_KSU
+          git clone -b wild https://github.com/WildKernels/KernelSU.git Wild_KSU
           
           # Create the symlink for the build system
           ln -sf "$(realpath --relative-to="$DRIVER_DIR" "$GKI_ROOT/Wild_KSU/kernel")" "$DRIVER_DIR/kernelsu"
