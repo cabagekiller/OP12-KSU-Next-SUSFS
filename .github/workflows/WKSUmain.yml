@@ -15,6 +15,7 @@ env:
   DEBIAN_FRONTEND: noninteractive
   ROOT_DIR_PREFIX: "OP12-A15"
   BRANCH: "android14-6.1"
+  PAHOLE_COMMIT: ""
   
 jobs:
   build-release:
