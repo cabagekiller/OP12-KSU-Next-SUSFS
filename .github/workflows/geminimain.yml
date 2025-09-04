@@ -1,4 +1,4 @@
-name: Build and Release Kernel SUSFS 1.5.9 WKSU
+name: Build and Release Kernel gemini
 
 on:
   #push:
