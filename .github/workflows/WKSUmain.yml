@@ -156,23 +156,7 @@ jobs:
           set -euxo pipefail
           # Pull KernelSU Next helper
           curl -LSs "https://raw.githubusercontent.com/WildKernels/Wild_KSU/wild/kernel/setup.sh" | bash -s wild
-          cd Wild_KSU/kernel
-
-          # Compute KSU version from commit count + base (same logic, but robust)
-          BASE_VERSION=10200
-          COMMITS=$(/usr/bin/git rev-list --count HEAD)
-          KSU_VERSION=$((COMMITS + BASE_VERSION))
-          echo "KSUVER=${KSU_VERSION}" | tee -a $GITHUB_ENV
-
-          # Integrate DKSU_VERSION into Makefile robustly:
-          # - If DKSU_VERSION=... exists, replace the value.
-          # - Else, append a define at EOF so builds pick it up.
-          if grep -qE '^[[:space:]]*DKSU_VERSION[[:space:]]*[:+]?=' Makefile; then
-            sed -i -E "s/^[[:space:]]*DKSU_VERSION[[:space:]]*[:+]?=.*/DKSU_VERSION:=${KSU_VERSION}/" Makefile
-          else
-            printf '\n# Injected by CI\nDKSU_VERSION:=%s\n' "${KSU_VERSION}" >> Makefile
-          fi
-
+         
       - name: Setup SUSFS and patches
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
@@ -205,6 +189,27 @@ jobs:
           patch -p1 -F 3 < scope_min_manual_hooks_v1.4.patch
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || echo "SUSFS patch may have been already applied."
           patch -p1 -F 3 < 69_hide_stuff.patch || echo "69_hide_stuff patch may have been already applied."
+
+      - name: Set KSU Version
+        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        run: |
+          set -euxo pipefail
+          cd Wild_KSU/kernel
+
+          # Compute KSU version from commit count + base (same logic, but robust)
+          BASE_VERSION=10200
+          COMMITS=$(/usr/bin/git rev-list --count HEAD)
+          KSU_VERSION=$((COMMITS + BASE_VERSION))
+          echo "KSUVER=${KSU_VERSION}" | tee -a $GITHUB_ENV
+
+          # Integrate DKSU_VERSION into Makefile robustly:
+          # - If DKSU_VERSION=... exists, replace the value.
+          # - Else, append a define at EOF so builds pick it up.
+          if grep -qE '^[[:space:]]*DKSU_VERSION[[:space:]]*[:+]?=' Makefile; then
+            sed -i -E "s/^[[:space:]]*DKSU_VERSION[[:space:]]*[:+]?=.*/DKSU_VERSION:=${KSU_VERSION}/" Makefile
+          else
+            printf '\n# Injected by CI\nDKSU_VERSION:=%s\n' "${KSU_VERSION}" >> Makefile
+          fi
 
       - name: Configure Kernel (defconfig edits)
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
