@@ -1,4 +1,4 @@
-name: Build and Release Kernel gemini
+name: Build and Release Kernel SUSFS 1.5.9 WKSU
 
 on:
   #push:
@@ -22,7 +22,7 @@ jobs:
 
       - name: Get KernelSU variant refs and links
         run: |
-          # Get WKSU latest commit from wild branch
+          # Get WKSU latest commit from wild branch (Corrected to use the correct repo)
           WKSU_REF=$(git ls-remote "https://github.com/WildKernels/Wild_KSU.git" refs/heads/wild | awk '{print $1}')
           WKSU_URL="https://github.com/WildKernels/Wild_KSU/commit/$WKSU_REF"
           echo "WKSU_REF=${WKSU_REF:0:7}" >> $GITHUB_ENV # Get short 7-char hash
@@ -39,7 +39,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             python3-pip curl git zip unzip gcc g++ make ninja-build file bc bison flex libssl-dev libelf-dev wget \
-            build-essential python3-dev python3-setuptools rsync ccache
+            build-essential python3-dev python3-setuptools rsync ccache perl
       - name: Cache ccache
         uses: actions/cache@v4
         with:
@@ -105,10 +105,9 @@ jobs:
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
-          echo "[+] Integrating KernelSU using symlink and Kconfig..."
+          echo "[+] Integrating KernelSU and patching Makefile for versioning..."
           GKI_ROOT=$(pwd)
           
-          # Find the correct drivers directory
           if test -d "$GKI_ROOT/common/drivers"; then
                DRIVER_DIR="$GKI_ROOT/common/drivers"
           elif test -d "$GKI_ROOT/drivers"; then
@@ -121,8 +120,23 @@ jobs:
           DRIVER_MAKEFILE=$DRIVER_DIR/Makefile
           DRIVER_KCONFIG=$DRIVER_DIR/Kconfig
           
-          # Clone the full KernelSU repository using the git protocol to avoid auth issues
+          git config --global --unset-all credential.helper || true
+          
           git clone -b wild https://github.com/WildKernels/Wild_KSU.git Wild_KSU
+          
+          # --- VERSIONING FIX ---
+          # Calculate the KSU version and hardcode it into the Makefile to bypass faulty detection logic.
+          cd "$GKI_ROOT/Wild_KSU/kernel"
+          KSU_GIT_VERSION=$(git rev-list --count HEAD)
+          KSU_VERSION=$(expr 10000 + $KSU_GIT_VERSION + 200)
+          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV # For release notes
+          echo "[+] Calculated KSUVER: $KSU_VERSION. Patching Makefile..."
+
+          # Use perl to replace the entire version-check block with our calculated version.
+          perl -i -p0e 's/ifeq \(\$\(shell test -e \$\(srctree\)\/\$\(src\)\/\.\.\/\.git; echo \$\$?\),0\).*?endif/ccflags-y += -DKSU_VERSION=$(KSU_VERSION)/s' Makefile
+          
+          cd "$GKI_ROOT" # Go back to the GKI root
+          # --- END FIX ---
           
           # Create the symlink for the build system
           ln -sf "$(realpath --relative-to="$DRIVER_DIR" "$GKI_ROOT/Wild_KSU/kernel")" "$DRIVER_DIR/kernelsu"
@@ -132,15 +146,6 @@ jobs:
           grep -q "source \"drivers/kernelsu/Kconfig\"" "$DRIVER_KCONFIG" || sed -i "/endmenu/i\source \"drivers/kernelsu/Kconfig\"" "$DRIVER_KCONFIG"
           
           echo "[+] KernelSU integrated into the build system."
-
-          # Calculate the version number FOR THE RELEASE NOTES ONLY.
-          # The build system will handle its own versioning.
-          cd "$GKI_ROOT/Wild_KSU/kernel"
-          KSU_GIT_VERSION=$(git rev-list --count HEAD)
-          # The version is 10000 (major) + commit count + 200 (historical offset)
-          KSU_VERSION=$(expr 10000 + $KSU_GIT_VERSION + 200)
-          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-          echo "[+] Calculated KSUVER for release notes: $KSU_VERSION"
       - name: Setup SUSFS
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
