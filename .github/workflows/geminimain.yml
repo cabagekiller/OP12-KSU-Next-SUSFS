@@ -132,8 +132,8 @@ jobs:
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           echo "[+] Calculated KSUVER: $KSU_VERSION. Applying direct patch..."
 
-          # Use perl to surgically replace the entire versioning block
-          perl -0777 -i -pe "s/ifeq \(\$\(shell test -e \$\(srctree\)\/\$\(src\)\/\.\.\/\.git; echo \$\$?\),0\).*?endif/# --- Patched by CI ---\nccflags-y += -DKSU_VERSION=${KSU_VERSION}/s" Makefile
+          # Use single quotes to protect the regex from the shell, and break out to insert the variable.
+          perl -0777 -i -pe 's/ifeq \(\$\(shell test -e \$\(srctree\)\/\$\(src\)\/\.\.\/\.git; echo \$\$?\),0\).*?endif/# --- Patched by CI ---\nccflags-y += -DKSU_VERSION='"${KSU_VERSION}"'/s' Makefile
           
           # Verify that the patch was successful
           if ! grep -q "DKSU_VERSION=${KSU_VERSION}" Makefile; then
