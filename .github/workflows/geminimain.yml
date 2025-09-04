@@ -1,4 +1,4 @@
-name: Build and Release Kernel gemini
+name: Build and Release Kernel SUSFS 1.5.9 WKSU
 
 on:
   #push:
@@ -125,18 +125,23 @@ jobs:
           git clone -b wild https://github.com/WildKernels/Wild_KSU.git Wild_KSU
           
           # --- VERSIONING FIX ---
-          # Calculate the KSU version and hardcode it into the Makefile to bypass faulty detection logic.
           cd "$GKI_ROOT/Wild_KSU/kernel"
           KSU_GIT_VERSION=$(git rev-list --count HEAD)
           KSU_VERSION=$(expr 10000 + $KSU_GIT_VERSION + 200)
-          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV # For release notes
-          echo "[+] Calculated KSUVER: $KSU_VERSION. Patching Makefile..."
+          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+          echo "[+] Calculated KSUVER: $KSU_VERSION. Applying patch..."
 
-          # Use perl to replace the entire version-check block with our calculated version.
-          perl -i -p0e 's/ifeq \(\$\(shell test -e \$\(srctree\)\/\$\(src\)\/\.\.\/\.git; echo \$\$?\),0\).*?endif/ccflags-y += -DKSU_VERSION=$(KSU_VERSION)/s' Makefile
+          # Copy the patch from the cloned patches repo
+          cp "../../../../kernel_patches/wild/ksu_makefile_version.patch" .
+          
+          # Inject the dynamic version into the patch file itself
+          sed -i "s/__KSU_VERSION_PLACEHOLDER__/${KSU_VERSION}/g" ksu_makefile_version.patch
+          
+          # Apply the now-dynamic patch
+          patch -p1 < ksu_makefile_version.patch
+          # --- END FIX ---
           
           cd "$GKI_ROOT" # Go back to the GKI root
-          # --- END FIX ---
           
           # Create the symlink for the build system
           ln -sf "$(realpath --relative-to="$DRIVER_DIR" "$GKI_ROOT/Wild_KSU/kernel")" "$DRIVER_DIR/kernelsu"
