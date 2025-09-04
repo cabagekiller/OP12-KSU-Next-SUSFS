@@ -131,6 +131,8 @@ jobs:
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           echo "[+] Calculated KSUVER: $KSU_VERSION. Applying patch..."
 
+          cd ..
+
           # Copy the patch from the cloned patches repo
           cp "../../../../../kernel_patches/wild/ksu_makefile_version.patch" .
           
