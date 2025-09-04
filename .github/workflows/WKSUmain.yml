@@ -118,14 +118,11 @@ jobs:
           cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
           cp "${SUSFS_PATCHES}/50_add_susfs_in_gki-android14-6.1.patch" ./common/
           cp "${KERNEL_PATCHES}/69_hide_stuff.patch" ./common/
-          cp "${KERNEL_PATCHES}/wild/scope_min_manual_hooks_v1.4.patch" ./common/
-          cp "${KERNEL_PATCHES}/wild/susfs_fix_patches/v1.5.9/fix_apk_sign.c.patch" "${KSU_NEXT}/"
+          cp "${KERNEL_PATCHES}/wild/hooks/scope_min_manual_hooks_v1.4.patch" ./common/
           cp "${KERNEL_PATCHES}/wild/susfs_fix_patches/v1.5.9/fix_rules.c.patch" "${KSU_NEXT}/"
           cp "${KERNEL_PATCHES}/wild/susfs_fix_patches/v1.5.9/fix_core_hook.c.patch" "${KSU_NEXT}/"
-          cp "${KERNEL_PATCHES}/wild/susfs_fix_patches/v1.5.9/fix_selinux.c.patch" "${KSU_NEXT}/"
           cp "${KERNEL_PATCHES}/wild/susfs_fix_patches/v1.5.9/fix_sucompat.c.patch" "${KSU_NEXT}/"
           cp "${KERNEL_PATCHES}/wild/susfs_fix_patches/v1.5.9/fix_kernel_compat.c.patch" "${KSU_NEXT}/"
-          cp "${KERNEL_PATCHES}/wild/susfs_fix_patches/v1.5.9/fix_ksud.c.patch" "${KSU_NEXT}/"
           #cp "${KERNEL_PATCHES}/wild/0001-kernel-implement-susfs-v1.5.8-KernelSU-Next-v1.0.8.patch" "${KSU_NEXT}/"
           cd "${KSU_NEXT}"
           patch -p1 --forward --fuzz=3 < 10_enable_susfs_for_ksu.patch || true
