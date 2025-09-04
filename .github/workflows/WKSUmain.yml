@@ -20,10 +20,10 @@ jobs:
   build-release:
     runs-on: ubuntu-latest
     env:
-      CCACHE_DIR: ${{ runner.temp }}/.ccache
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
       CCACHE_MAXSIZE: 15G
       CCACHE_COMPRESS: 1
-      BAZEL_USER_ROOT: ${{ runner.temp }}/.bazel
+      BAZEL_USER_ROOT: ${{ github.workspace }}/.bazel
       
     steps:
       - name: Checkout code
