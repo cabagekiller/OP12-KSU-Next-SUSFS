@@ -100,6 +100,7 @@ jobs:
           set -euxo pipefail
           #curl -LSs "https://raw.githubusercontent.com/WildKernels/Wild_KSU/wild/kernel/setup.sh" | bash -s wild
           git submodule update --init --recursive
+          cp -r "${{ github.workspace }}/Wild_KSU" .
           cd Wild_KSU          
           cd kernel
           BASE_VERSION=10200
