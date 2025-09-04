@@ -125,24 +125,22 @@ jobs:
           git clone -b wild https://github.com/WildKernels/Wild_KSU.git Wild_KSU
           
           # --- VERSIONING FIX ---
+          # Calculate version from inside the kernel dir
           cd "$GKI_ROOT/Wild_KSU/kernel"
           KSU_GIT_VERSION=$(git rev-list --count HEAD)
           KSU_VERSION=$(expr 10000 + $KSU_GIT_VERSION + 200)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-          echo "[+] Calculated KSUVER: $KSU_VERSION. Applying patch..."
+          echo "[+] Calculated KSUVER: $KSU_VERSION. Applying direct patch..."
 
-          cd ..
-
-          # Copy the patch from the cloned patches repo
-          cp "../../../../kernel_patches/wild/ksu_makefile_version.patch" .
-
-          dos2unix ksu_makefile_version.patch
+          # Use perl to surgically replace the entire versioning block
+          perl -0777 -i -pe "s/ifeq \(\$\(shell test -e \$\(srctree\)\/\$\(src\)\/\.\.\/\.git; echo \$\$?\),0\).*?endif/# --- Patched by CI ---\nccflags-y += -DKSU_VERSION=${KSU_VERSION}/s" Makefile
           
-          # Inject the dynamic version into the patch file itself
-          sed -i "s/__KSU_VERSION_PLACEHOLDER__/${KSU_VERSION}/g" ksu_makefile_version.patch
-          
-          # Apply the now-dynamic patch
-          patch -p1 < ksu_makefile_version.patch
+          # Verify that the patch was successful
+          if ! grep -q "DKSU_VERSION=${KSU_VERSION}" Makefile; then
+            echo "ERROR: Makefile patching failed!"
+            exit 1
+          fi
+          echo "[+] Makefile verified."
           # --- END FIX ---
           
           cd "$GKI_ROOT" # Go back to the GKI root
