@@ -132,7 +132,7 @@ jobs:
           echo "[+] Calculated KSUVER: $KSU_VERSION. Applying patch..."
 
           # Copy the patch from the cloned patches repo
-          cp "../../../../kernel_patches/wild/ksu_makefile_version.patch" .
+          cp "../../../kernel_patches/wild/ksu_makefile_version.patch" .
           
           # Inject the dynamic version into the patch file itself
           sed -i "s/__KSU_VERSION_PLACEHOLDER__/${KSU_VERSION}/g" ksu_makefile_version.patch
