@@ -1,4 +1,4 @@
-name: Build and Release Kernel SUSFS 1.5.9
+name: Build and Release Kernel SUSFS 1.5.9 WKSU
 
 on:
   #push:
