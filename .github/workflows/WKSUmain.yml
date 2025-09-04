@@ -80,22 +80,23 @@ jobs:
         run: |
           set -euxo pipefail
           sudo apt-get remove --purge -y dwarves || true
-          if [ -n "${PAHOLE_COMMIT}" ]; then
-            git clone --recurse-submodules https://git.kernel.org/pub/scm/devel/pahole/pahole.git
-            cd pahole
+
+          git clone --recurse-submodules https://git.kernel.org/pub/scm/devel/pahole/pahole.git
+          cd pahole
+          if [ -n "${PAHOLE_COMMIT:-}" ]; then
             git checkout "${PAHOLE_COMMIT}"
-            cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-            cmake --build build -j"$(nproc)"
-            sudo cmake --install build
-          else
-            git clone --recurse-submodules https://git.kernel.org/pub/scm/devel/pahole/pahole.git
-            cd pahole
-            cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-            cmake --build build -j"$(nproc)"
-            sudo cmake --install build
           fi
+
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j"$(nproc)"
+          sudo cmake --install build
+
+          # Refresh library cache so /usr/local/lib is recognized
+          sudo ldconfig
+
           which pahole
           pahole --version
+
 
       - name: Setup Python and Repo Tool
         run: |
