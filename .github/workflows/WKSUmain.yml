@@ -279,13 +279,20 @@ jobs:
       - name: Build Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         env:
-          PATH: /usr/lib/ccache:${{ env.PATH }}
           CCACHE_DIR: ${{ env.CCACHE_DIR }}
           BAZEL_USER_ROOT: ${{ env.BAZEL_USER_ROOT }}
         run: |
           set -euxo pipefail
+
+          # Ensure PATH keeps system dirs; prepend /usr/lib/ccache
+          export PATH="/usr/lib/ccache:${PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}"
+
+          echo "PATH=${PATH}"   # debug
+          which mkdir
+
           mkdir -p out
           start_time=$(date +%s)
+
           ccache -z || true
 
           ./build_with_bazel.py \
