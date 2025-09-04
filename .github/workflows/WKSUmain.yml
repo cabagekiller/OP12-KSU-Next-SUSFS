@@ -121,13 +121,13 @@ jobs:
           cp "${KERNEL_PATCHES}/wild/hooks/scope_min_manual_hooks_v1.4.patch" ./common/
           cp "${KERNEL_PATCHES}/wild/susfs_fix_patches/v1.5.9/fix_rules.c.patch" "${KSU_NEXT}/"
           #cp "${KERNEL_PATCHES}/wild/susfs_fix_patches/v1.5.9/fix_apk_sign.c.patch" "${KSU_NEXT}/"
-          cp "${KERNEL_PATCHES}/wild/susfs_fix_patches/v1.5.9/fix_core_hook2.c.patch" "${KSU_NEXT}/"
+          cp "${KERNEL_PATCHES}/wild/susfs_fix_patches/v1.5.9/test/fix_core_hook.c.patch" "${KSU_NEXT}/"
           cp "${KERNEL_PATCHES}/wild/susfs_fix_patches/v1.5.9/fix_sucompat.c.patch" "${KSU_NEXT}/"
           cp "${KERNEL_PATCHES}/wild/susfs_fix_patches/v1.5.9/fix_kernel_compat.c.patch" "${KSU_NEXT}/"
           #cp "${KERNEL_PATCHES}/wild/0001-kernel-implement-susfs-v1.5.8-KernelSU-Next-v1.0.8.patch" "${KSU_NEXT}/"
           cd "${KSU_NEXT}"
           patch -p1 --forward --fuzz=3 < 10_enable_susfs_for_ksu.patch || true
-          patch -p1 --forward --fuzz=3 < fix_core_hook2.c.patch
+          patch -p1 --forward --fuzz=3 < fix_core_hook.c.patch
           patch -p1 --forward --fuzz=3 < fix_rules.c.patch
           #patch -p1 --forward --fuzz=3 < fix_apk_sign.c.patch
           patch -p1 --forward --fuzz=3 < fix_sucompat.c.patch
