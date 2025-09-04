@@ -18,6 +18,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          submodules: 'recursive' # This will checkout the KernelSU submodule automatically
           fetch-depth: 0  # Important for submodules
 
       - name: Free Disk Space & Update APT
@@ -97,8 +98,8 @@ jobs:
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
-          curl -LSs "https://raw.githubusercontent.com/WildKernels/Wild_KSU/wild/kernel/setup.sh" | bash -s wild
-          #git submodule update --init --recursive
+          #curl -LSs "https://raw.githubusercontent.com/WildKernels/Wild_KSU/wild/kernel/setup.sh" | bash -s wild
+          git submodule update --init --recursive
           cd Wild_KSU          
           cd kernel
           BASE_VERSION=10200
