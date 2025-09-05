@@ -62,7 +62,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-ccache-${{ hashFiles('**/*KernelSU*','**/*.bzl','**/build.config*','**/gki_defconfig') }}
+          key: ${{ runner.os }}-ccache-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-ccache-
 
@@ -72,7 +72,7 @@ jobs:
           path: |
             ${{ env.BAZEL_USER_ROOT }}
             ~/.cache/bazel
-          key: ${{ runner.os }}-bazel-${{ hashFiles('**/*.bzl','**/WORKSPACE','**/MODULE.bazel','**/BUILD*','**/build_with_bazel.py') }}
+          key: ${{ runner.os }}-bazel-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-bazel-
 
@@ -156,7 +156,7 @@ jobs:
           set -euxo pipefail
           # Pull KernelSU Next helper
           curl -LSs "https://raw.githubusercontent.com/WildKernels/Wild_KSU/wild/kernel/setup.sh" | bash -s wild
-         
+          
       - name: Setup SUSFS and patches
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
@@ -286,7 +286,7 @@ jobs:
           # Ensure PATH keeps system dirs; prepend /usr/lib/ccache
           export PATH="/usr/lib/ccache:${PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}"
 
-          echo "PATH=${PATH}"   # debug
+          echo "PATH=${PATH}"    # debug
           which mkdir
 
           mkdir -p out
@@ -371,3 +371,4 @@ jobs:
             ${{ env.BUILD_DIR }}/kernel_platform/oneplus12_v/kernel_platform/**/*.rej
           retention-days: 5
           if-no-files-found: warn
+
