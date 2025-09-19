@@ -72,7 +72,7 @@ jobs:
           set -euxo pipefail
           git clone --recursive https://github.com/WildKernels/AnyKernel3.git -b gki-2.0
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
-          git clone https://github.com/TheWildJames/kernel_patches.git
+          git clone https://github.com/cabagekiller/kernel_patches.git
 
       - name: Setup Kernel Source
         working-directory: ${{ env.BUILD_DIR }}
@@ -115,7 +115,7 @@ jobs:
           # Apply patches
           cd "${KSU_NEXT}"
           
-          patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
+          patch -p1 --forward -F 3 < 10_enable_susfs_for_ksu.patch || true
           
           for file in $(find ./kernel -maxdepth 2 -name "*.rej" -printf "%f\n" | cut -d'.' -f1); do
             echo "Patching file: $file.c with fix_$file.c.patch"
