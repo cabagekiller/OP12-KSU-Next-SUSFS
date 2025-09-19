@@ -1,4 +1,4 @@
-name: Build and Release Kernel SUSFS 1.5.9 (Corrected)
+name: Build and Release Kernel SUSFS 1.5.9 (Final Corrected Version)
 
 on:
   workflow_dispatch:
@@ -78,9 +78,11 @@ jobs:
           git clone https://github.com/cabagekiller/kernel_patches.git
 
       - name: Setup Kernel Source
-        working-directory: ${{ env.KERNEL_SRC_DIR }}
+        working-directory: ${{ env.BUILD_DIR }} # CORRECTED: Run repo init from the parent build directory
         run: |
           set -euxo pipefail
+          mkdir -p kernel_platform/oneplus12_v
+          cd kernel_platform/oneplus12_v
           repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus12_v.xml --depth=1
           repo sync -c -j"$(nproc)" --force-sync --no-clone-bundle --no-tags || { echo "Repo sync failed."; exit 1; }
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
@@ -102,9 +104,8 @@ jobs:
         working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
-          # Corrected relative paths from this working directory
-          SUSFS_REPO_DIR="../../../susfs4ksu"
-          PATCHES_REPO_DIR="../../../kernel_patches"
+          SUSFS_REPO_DIR="${{ env.BUILD_DIR }}/susfs4ksu"
+          PATCHES_REPO_DIR="${{ env.BUILD_DIR }}/kernel_patches"
           KSU_SUBMODULE_DIR="KernelSU-Next"
 
           # Copy SUSFS source files
