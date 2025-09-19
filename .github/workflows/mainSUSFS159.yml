@@ -1,4 +1,4 @@
-name: Build and Release Kernel SUSFS 1.5.9 (Optimized with Dynamic Patching)
+name: Build and Release Kernel SUSFS 1.5.9 (Optimized)
 
 on:
   workflow_dispatch:
@@ -57,14 +57,15 @@ jobs:
             ~/.cache/bazel
           key: ${{ runner.os }}-build-cache-${{ hashFiles('**/CMakeLists.txt') }}
 
-      - name: Configure Build Directory
-        id: build_dir
+      - name: Configure Build Directories
+        id: build_dirs
         run: |
           set -euxo pipefail
           BUILD_DIR="${GITHUB_WORKSPACE}/builds"
+          KERNEL_SRC_DIR="${BUILD_DIR}/kernel_platform/oneplus12_v"
           echo "BUILD_DIR=${BUILD_DIR}" >> $GITHUB_ENV
-          mkdir -p "${BUILD_DIR}"
-          echo "Build directory set to ${BUILD_DIR}"
+          echo "KERNEL_SRC_DIR=${KERNEL_SRC_DIR}" >> $GITHUB_ENV
+          mkdir -p "${KERNEL_SRC_DIR}"
 
       - name: Clone External Repositories
         working-directory: ${{ env.BUILD_DIR }}
@@ -75,13 +76,9 @@ jobs:
           git clone https://github.com/cabagekiller/kernel_patches.git
 
       - name: Setup Kernel Source
-        working-directory: ${{ env.BUILD_DIR }}
+        working-directory: ${{ env.KERNEL_SRC_DIR }}
         run: |
           set -euxo pipefail
-          KERNEL_DIR="kernel_platform/oneplus12_v"
-          echo "KERNEL_DIR=${KERNEL_DIR}" >> $GITHUB_ENV
-          mkdir -p "${KERNEL_DIR}"
-          cd "${KERNEL_DIR}"
           repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus12_v.xml --depth=1
           repo sync -c -j"$(nproc)" --force-sync --no-clone-bundle --no-tags || { echo "Repo sync failed."; exit 1; }
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
@@ -89,10 +86,10 @@ jobs:
       - name: Integrate KernelSU Submodule
         run: |
           set -euxo pipefail
-          cp -r "${GITHUB_WORKSPACE}/kernel_platform/KernelSU-Next" "${BUILD_DIR}/${KERNEL_DIR}/kernel_platform/"
+          cp -r "${GITHUB_WORKSPACE}/kernel_platform/KernelSU-Next" "${KERNEL_SRC_DIR}/kernel_platform/"
 
       - name: Setup KernelSU Version
-        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/KernelSU-Next/kernel
+        working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform/KernelSU-Next/kernel
         run: |
           set -euxo pipefail
           KSU_VERSION=$(expr $(git rev-list --count HEAD) + 10200)
@@ -100,26 +97,25 @@ jobs:
           sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" Makefile
           
       - name: Setup SUSFS and Apply Patches
-        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
-          SUSFS_REPO_DIR="../../../susfs4ksu"
-          PATCHES_REPO_DIR="../../../kernel_patches"
+          # Corrected relative paths from this working directory
+          SUSFS_REPO_DIR="../../susfs4ksu"
+          PATCHES_REPO_DIR="../../kernel_patches"
           KSU_SUBMODULE_DIR="KernelSU-Next"
 
-          # --- Copy SUSFS files into kernel source ---
+          # Copy SUSFS source files
           echo "Copying SUSFS source files..."
           mkdir -p ./common/fs ./common/include/linux
           cp "${SUSFS_REPO_DIR}/kernel_patches/fs/"* ./common/fs/
           cp "${SUSFS_REPO_DIR}/kernel_patches/include/linux/"* ./common/include/linux/
 
-          # --- Apply Patches to KernelSU-Next Submodule ---
+          # Apply patches to KernelSU-Next Submodule
           echo "Patching KernelSU-Next submodule..."
-          
-          # 1. Apply the main SUSFS enablement patch
-          patch -p1 -d "${KSU_SUBMODULE_DIR}" --forward --fuzz=3 < "${SUSFS_REPO_DIR}/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch" || true
+          patch -p1 -d "${KSU_SUBMODULE_DIR}" --forward -F 3 < "${SUSFS_REPO_DIR}/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch" || true
 
-          # 2. Find rejected hunks and apply corresponding fix patches
+          # Find rejected hunks and apply corresponding fix patches
           for rej_file in $(find "${KSU_SUBMODULE_DIR}/kernel" -maxdepth 2 -name "*.rej"); do
             original_file=$(basename "$rej_file" .rej)
             fix_patch_path="${PATCHES_REPO_DIR}/next/susfs_fix_patches/${SUSFS_VERSION}/fix_${original_file}.patch"
@@ -131,18 +127,17 @@ jobs:
               echo "Warning: No fix patch found for ${original_file} at ${fix_patch_path}"
             fi
           done
-
-          # 3. Apply the final kernel_compat fix
+          
           patch -p1 -d "${KSU_SUBMODULE_DIR}" --forward < "${PATCHES_REPO_DIR}/next/susfs_fix_patches/${SUSFS_VERSION}/fix_kernel_compat.c.patch"
 
-          # --- Apply Patches to Common Kernel Source ---
+          # Apply patches to common kernel source
           echo "Patching common kernel source..."
-          patch -p1 -d common < "${SUSFS_REPO_DIR}/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch" || echo "SUSFS GKI patch may have already been applied."
-          patch -p1 -d common -F 3 < "${PATCHES_REPO_DIR}/69_hide_stuff.patch" || echo "Hide stuff patch may have already been applied."
-          patch -p1 -d common -F 3 < "${PATCHES_REPO_DIR}/next/scope_min_manual_hooks_v1.4.patch"
+          patch -p1 -d common < "${SUSFS_REPO_DIR}/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch" || true
+          patch -p1 -d common -F 3 < "${PATCHES_REPO_DIR}/69_hide_stuff.patch" || true
+          patch -p1 -d common -F 3 < "${PATCHES_REPO_DIR}/next/scope_min_manual_hooks_v1.4.patch" || true
 
       - name: Configure Kernel
-        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
           # Apply kernel configurations
@@ -190,7 +185,7 @@ jobs:
           sed -i 's/export REPACK_IMG=true/export REPACK_IMG=false/g' ./oplus/build/oplus_setup.sh
 
       - name: Build Kernel
-        working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
+        working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
           mkdir -p out
@@ -210,7 +205,7 @@ jobs:
         run: |
           set -euxo pipefail
           cd AnyKernel3
-          cp ../${{ env.KERNEL_DIR }}/kernel_platform/out/dist/Image .
+          cp ../../${{ env.KERNEL_SRC_DIR }}/kernel_platform/out/dist/Image .
           ZIP_NAME="Cabage-OP12-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
           echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
           zip -r "../${ZIP_NAME}" ./*
@@ -235,6 +230,6 @@ jobs:
         with:
           name: build-logs
           path: |
-            ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/out/*.log
-            ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/**/*.rej
+            ${{ env.KERNEL_SRC_DIR }}/kernel_platform/out/*.log
+            ${{ env.KERNEL_SRC_DIR }}/kernel_platform/**/*.rej
           retention-days: 7
