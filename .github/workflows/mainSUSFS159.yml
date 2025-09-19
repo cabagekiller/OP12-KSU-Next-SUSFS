@@ -1,4 +1,4 @@
-name: Build and Release Kernel SUSFS 1.5.9
+name: Build and Release Kernel SUSFS 1.5.9 (Final Corrected Version)
 
 on:
   workflow_dispatch:
@@ -13,10 +13,13 @@ jobs:
   build-release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code (with Submodules)
+      - name: Checkout Code and Update Submodule
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive' # This correctly checks out your KernelSU-Next submodule
+          fetch-depth: 0
+          submodules: 'recursive'
+      - run: |
+          git submodule update --remote --merge
 
       - name: Setup Build Environment and Dependencies
         run: |
@@ -27,14 +30,14 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             python3-pip curl git zip unzip gcc g++ make ninja-build file bc bison flex libssl-dev libelf-dev wget \
             build-essential python3-dev python3-setuptools rsync ccache
-
+          
           # Install latest Pahole
           sudo apt-get remove --purge -y dwarves
           git clone --recurse-submodules https://git.kernel.org/pub/scm/devel/pahole/pahole.git
           cd pahole && cmake . && sudo make install && cd ..
-
+          
           # Setup Python and repo tool
-          sudo pip3 install --break-system-packages gitpython xmltodict
+          python3 -m pip install --upgrade pip gitpython xmltodict
           mkdir -p "$HOME/bin"
           wget -O "$HOME/bin/repo" https://storage.googleapis.com/git-repo-downloads/repo
           chmod a+x "$HOME/bin/repo"
@@ -52,7 +55,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-build-cache-
 
-      - name: Configure Build Directories
+      - name: Configure Build Directories and KSU Version
         id: build_dirs
         run: |
           set -euxo pipefail
@@ -61,6 +64,10 @@ jobs:
           echo "BUILD_DIR=${BUILD_DIR}" >> $GITHUB_ENV
           echo "KERNEL_SRC_DIR=${KERNEL_SRC_DIR}" >> $GITHUB_ENV
           mkdir -p "${BUILD_DIR}"
+          # Calculate KSU Version from the original submodule checkout
+          cd "${GITHUB_WORKSPACE}/kernel_platform/KernelSU-Next/kernel"
+          KSU_VERSION=$(expr $(git rev-list --count HEAD) + 10200)
+          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
 
       - name: Clone External Repositories
         working-directory: ${{ env.BUILD_DIR }}
@@ -68,7 +75,6 @@ jobs:
           set -euxo pipefail
           git clone --recursive https://github.com/WildKernels/AnyKernel3.git -b gki-2.0
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
-          # Cloning the patches repository as requested
           git clone https://github.com/cabagekiller/kernel_patches.git
 
       - name: Setup Kernel Source
@@ -84,25 +90,21 @@ jobs:
       - name: Integrate KernelSU Submodule
         run: |
           set -euxo pipefail
-          # Copy the submodule from the main repository checkout into the kernel source tree
           cp -r "${GITHUB_WORKSPACE}/kernel_platform/KernelSU-Next" "${{ env.KERNEL_SRC_DIR }}/kernel_platform/"
 
-      - name: Setup KernelSU Version
+      - name: Apply KernelSU Version to Makefile
         working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform/KernelSU-Next/kernel
         run: |
           set -euxo pipefail
-          KSU_VERSION=$(expr $(git rev-list --count HEAD) + 10200)
-          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-          # This sed command is more robust and won't fail if the base number changes
-          sed -i "s/DKSU_VERSION=[0-9]*/DKSU_VERSION=${KSU_VERSION}/" Makefile
-
+          sed -i "s/DKSU_VERSION=[0-9]*/DKSU_VERSION=${KSUVER}/" Makefile
+          
       - name: Setup SUSFS and Apply Patches
         working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
           SUSFS_REPO_DIR="${{ env.BUILD_DIR }}/susfs4ksu"
           PATCHES_REPO_DIR="${{ env.BUILD_DIR }}/kernel_patches"
-          KSU_SUBMODULE_DIR="KernelSU-Next" # This is now relative to the current working directory
+          KSU_SUBMODULE_DIR="KernelSU-Next"
 
           # Copy SUSFS source files
           echo "Copying SUSFS source files..."
@@ -113,8 +115,9 @@ jobs:
           # Apply patches to KernelSU-Next Submodule
           echo "Patching KernelSU-Next submodule..."
           cd "${KSU_SUBMODULE_DIR}"
-          patch -p1 --forward -F 3 < "${SUSFS_REPO_DIR}/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch" || true
-          
+          cp "${SUSFS_REPO_DIR}/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch" ./
+          patch -p1 --forward -F 3 < 10_enable_susfs_for_ksu.patch || true
+
           # Find rejected hunks and apply corresponding fix patches
           for rej_file in $(find ./kernel -maxdepth 2 -name "*.rej"); do
             original_file=$(basename "$rej_file" .rej)
@@ -180,7 +183,7 @@ jobs:
 
           # Remove defconfig check and apply branding
           sed -i 's/check_defconfig//' ./common/build.config.gki
-          sed -i '$s|echo "\\$res"|echo "\\$res-Cabage"|' ./common/scripts/setlocalversion
+          sed -i '$s|echo "\$res"|echo "\$res-Cabage"|' ./common/scripts/setlocalversion
           sed -i 's/-dirty//' ./common/scripts/setlocalversion
           sed -i '/echo "LTO $LTO "/i export LTO=thin' ./oplus/build/oplus_setup.sh
           sed -i 's/export REPACK_IMG=true/export REPACK_IMG=false/g' ./oplus/build/oplus_setup.sh
