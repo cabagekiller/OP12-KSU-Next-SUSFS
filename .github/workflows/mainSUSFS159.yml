@@ -1,4 +1,4 @@
-name: Build and Release Kernel SUSFS 1.5.9 (Optimized)
+name: Build and Release Kernel SUSFS 1.5.9 (Optimized with Dynamic Patching)
 
 on:
   workflow_dispatch:
@@ -7,6 +7,7 @@ env:
   DEBIAN_FRONTEND: noninteractive
   ROOT_DIR_PREFIX: "OP12-A15"
   BRANCH: "android14-6.1"
+  SUSFS_VERSION: "v1.5.9"
 
 jobs:
   build-release:
@@ -112,15 +113,18 @@ jobs:
           cp "${SUSFS_PATCHES}/include/linux/"* ./common/include/linux/
 
           # Apply patches
-          patch -p1 -d "${KSU_NEXT}" < "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" || true
-          patch -p1 -d "${KSU_NEXT}" < "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_apk_sign.c.patch"
-          patch -p1 -d "${KSU_NEXT}" < "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_rules.c.patch"
-          patch -p1 -d "${KSU_NEXT}" < "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_core_hook.c.patch"
-          patch -p1 -d "${KSU_NEXT}" < "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_selinux.c.patch"
-          patch -p1 -d "${KSU_NEXT}" < "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_sucompat.c.patch"
-          patch -p1 -d "${KSU_NEXT}" < "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_kernel_compat.c.patch"
-          patch -p1 -d "${KSU_NEXT}" < "${KERNEL_PATCHES}/next/susfs_fix_patches/v1.5.9/fix_ksud.c.patch"
+          cd "${KSU_NEXT}"
+          cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" ./
+          patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
           
+          for file in $(find ./kernel -maxdepth 2 -name "*.rej" -printf "%f\n" | cut -d'.' -f1); do
+            echo "Patching file: $file.c with fix_$file.c.patch"
+            patch -p1 --forward < "../../../kernel_patches/next/susfs_fix_patches/${SUSFS_VERSION}/fix_$file.c.patch"
+          done
+          
+          patch -p1 --forward < "../../../kernel_patches/next/susfs_fix_patches/${SUSFS_VERSION}/fix_kernel_compat.c.patch"
+          cd ..
+
           patch -p1 -d common < "${SUSFS_PATCHES}/50_add_susfs_in_gki-android14-6.1.patch" || echo "SUSFS GKI patch may have already been applied."
           patch -p1 -d common -F 3 < "${KERNEL_PATCHES}/69_hide_stuff.patch" || echo "Hide stuff patch may have already been applied."
           patch -p1 -d common -F 3 < "${KERNEL_PATCHES}/next/scope_min_manual_hooks_v1.4.patch"
