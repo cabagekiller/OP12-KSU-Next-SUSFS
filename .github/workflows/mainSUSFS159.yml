@@ -94,7 +94,7 @@ jobs:
           set -euxo pipefail
           KSU_VERSION=$(expr $(git rev-list --count HEAD) + 10200)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" Makefile
+          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSUVER}/" Makefile
           
       - name: Setup SUSFS and Apply Patches
         working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform
