@@ -13,13 +13,10 @@ jobs:
   build-release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code and Update Submodule
+      - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: 'recursive'
-      - run: |
-          git submodule update --remote --merge
 
       - name: Setup Build Environment and Dependencies
         run: |
@@ -72,6 +69,8 @@ jobs:
           git clone --recursive https://github.com/WildKernels/AnyKernel3.git -b gki-2.0
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
           git clone https://github.com/cabagekiller/kernel_patches.git
+          # Clone KernelSU-Next directly since it's not a submodule
+          git clone https://github.com/rifsxd/KernelSU-Next.git KernelSU-Next
 
       - name: Setup Kernel Source
         working-directory: ${{ env.BUILD_DIR }}
@@ -83,10 +82,11 @@ jobs:
           repo sync -c -j"$(nproc)" --force-sync --no-clone-bundle --no-tags || { echo "Repo sync failed."; exit 1; }
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
 
-      - name: Integrate KernelSU Submodule
+      - name: Integrate KernelSU
         run: |
           set -euxo pipefail
-          cp -r "${GITHUB_WORKSPACE}/kernel_platform/KernelSU-Next" "${{ env.KERNEL_SRC_DIR }}/kernel_platform/"
+          # Copy the freshly cloned KernelSU-Next into the kernel source
+          cp -r "${{ env.BUILD_DIR }}/KernelSU-Next" "${{ env.KERNEL_SRC_DIR }}/kernel_platform/"
 
       - name: Setup KernelSU Version
         working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform/KernelSU-Next/kernel
@@ -94,7 +94,7 @@ jobs:
           set -euxo pipefail
           KSU_VERSION=$(expr $(git rev-list --count HEAD) + 10200)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSUVER}/" Makefile
+          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" Makefile
           
       - name: Setup SUSFS and Apply Patches
         working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform
@@ -110,8 +110,8 @@ jobs:
           cp "${SUSFS_REPO_DIR}/kernel_patches/fs/"* ./common/fs/
           cp "${SUSFS_REPO_DIR}/kernel_patches/include/linux/"* ./common/include/linux/
 
-          # Apply patches to KernelSU-Next Submodule
-          echo "Patching KernelSU-Next submodule..."
+          # Apply patches to KernelSU-Next
+          echo "Patching KernelSU-Next..."
           cd "${KSU_SUBMODULE_DIR}"
           cp "${SUSFS_REPO_DIR}/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch" ./
           patch -p1 --forward -F 3 < 10_enable_susfs_for_ksu.patch || true
