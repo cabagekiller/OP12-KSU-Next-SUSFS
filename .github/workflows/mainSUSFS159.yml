@@ -111,10 +111,10 @@ jobs:
           mkdir -p ./common/fs ./common/include/linux
           cp "${SUSFS_PATCHES}/fs/"* ./common/fs/
           cp "${SUSFS_PATCHES}/include/linux/"* ./common/include/linux/
-
+          cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
           # Apply patches
           cd "${KSU_NEXT}"
-          cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" ./
+          
           patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
           
           for file in $(find ./kernel -maxdepth 2 -name "*.rej" -printf "%f\n" | cut -d'.' -f1); do
