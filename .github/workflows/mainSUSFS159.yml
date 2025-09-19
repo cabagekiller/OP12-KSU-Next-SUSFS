@@ -8,7 +8,6 @@ env:
   ROOT_DIR_PREFIX: "OP12-A15"
   BRANCH: "android14-6.1"
   SUSFS_VERSION: "v1.5.9"
-  KSU_PATCH_URL: "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh"
 
 defaults:
   run:
@@ -86,20 +85,25 @@ jobs:
           repo sync -c -j"$(nproc)" --force-sync --no-clone-bundle --no-tags
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
 
-      - name: Integrate KernelSU
-        working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform
+      - name: Integrate KernelSU Submodule
         run: |
-          # Use the official KernelSU setup script
-          curl -LSs "${KSU_PATCH_URL}" | bash
-          KSU_VERSION=$(expr $(git -C KernelSU rev-list --count HEAD) + 10200)
+          # This build uses a specific "KernelSU-Next" submodule included in the repo
+          cp -r "${GITHUB_WORKSPACE}/kernel_platform/KernelSU-Next" "${KERNEL_SRC_DIR}/kernel_platform/"
+
+      - name: Setup KernelSU Version
+        working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform/KernelSU-Next/kernel
+        run: |
+          # Manually calculate and set the KernelSU version based on commit count
+          KSU_VERSION=$(expr $(git rev-list --count HEAD) + 10200)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" Makefile
 
       - name: Setup SUSFS and Apply Patches
         working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform
         run: |
           SUSFS_REPO_DIR="../../susfs4ksu"
           PATCHES_REPO_DIR="../../kernel_patches"
-          KSU_SUBMODULE_DIR="KernelSU" # Official script clones to KernelSU
+          KSU_SUBMODULE_DIR="KernelSU-Next"
 
           # Copy SUSFS source files
           echo "Copying SUSFS source files..."
@@ -204,7 +208,7 @@ jobs:
         with:
           files: ${{ env.BUILD_DIR }}/${{ steps.package.outputs.zip_name }}
           tag_name: ${{ steps.package.outputs.tag_name }}
-          name: "KernelSU CI Build ${{ steps.package.outputs.tag_name }}"
+          name: "KernelSU-Next CI Build ${{ steps.package.outputs.tag_name }}"
           body: |
             **Device:** ${{ env.ROOT_DIR_PREFIX }}
             **Branch:** ${{ env.BRANCH }}
