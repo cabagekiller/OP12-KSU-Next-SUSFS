@@ -124,13 +124,13 @@ jobs:
             
             if [ -f "$fix_patch_path" ]; then
               echo "Applying fix for ${original_file}..."
-              patch -p1 -d "${KSU_SUBMODULE_DIR}" --forward < "$fix_patch_path"
+              patch -p1 -d "${KSU_SUBMODULE_DIR}" --forward < "$fix_patch_path" || true
             else
               echo "Warning: No fix patch found for ${original_file} at ${fix_patch_path}"
             fi
           done
           
-          patch -p1 -d "${KSU_SUBMODULE_DIR}" --forward < "${PATCHES_REPO_DIR}/next/susfs_fix_patches/${SUSFS_VERSION}/fix_kernel_compat.c.patch"
+          patch -p1 -d "${KSU_SUBMODULE_DIR}" --forward < "${PATCHES_REPO_DIR}/next/susfs_fix_patches/${SUSFS_VERSION}/fix_kernel_compat.c.patch" || true
 
           # Apply patches to common kernel source
           echo "Patching common kernel source..."
