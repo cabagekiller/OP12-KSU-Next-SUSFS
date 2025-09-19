@@ -103,31 +103,43 @@ jobs:
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
-          SUSFS_PATCHES="../../../susfs4ksu/kernel_patches"
-          KERNEL_PATCHES="../../../kernel_patches"
-          KSU_NEXT="KernelSU-Next"
+          SUSFS_REPO_DIR="../../../susfs4ksu"
+          PATCHES_REPO_DIR="../../../kernel_patches"
+          KSU_SUBMODULE_DIR="KernelSU-Next"
 
-          # Copy SUSFS files
+          # --- Copy SUSFS files into kernel source ---
+          echo "Copying SUSFS source files..."
           mkdir -p ./common/fs ./common/include/linux
-          cp "${SUSFS_PATCHES}/fs/"* ./common/fs/
-          cp "${SUSFS_PATCHES}/include/linux/"* ./common/include/linux/
-          cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
-          # Apply patches
-          cd "${KSU_NEXT}"
-          
-          patch -p1 --forward -F 3 < 10_enable_susfs_for_ksu.patch || true
-          
-          for file in $(find ./kernel -maxdepth 2 -name "*.rej" -printf "%f\n" | cut -d'.' -f1); do
-            echo "Patching file: $file.c with fix_$file.c.patch"
-            patch -p1 --forward < "../../../kernel_patches/next/susfs_fix_patches/${SUSFS_VERSION}/fix_$file.c.patch"
-          done
-          
-          patch -p1 --forward < "../../../kernel_patches/next/susfs_fix_patches/${SUSFS_VERSION}/fix_kernel_compat.c.patch"
-          cd ..
+          cp "${SUSFS_REPO_DIR}/kernel_patches/fs/"* ./common/fs/
+          cp "${SUSFS_REPO_DIR}/kernel_patches/include/linux/"* ./common/include/linux/
 
-          patch -p1 -d common < "${SUSFS_PATCHES}/50_add_susfs_in_gki-android14-6.1.patch" || echo "SUSFS GKI patch may have already been applied."
-          patch -p1 -d common -F 3 < "${KERNEL_PATCHES}/69_hide_stuff.patch" || echo "Hide stuff patch may have already been applied."
-          patch -p1 -d common -F 3 < "${KERNEL_PATCHES}/next/scope_min_manual_hooks_v1.4.patch"
+          # --- Apply Patches to KernelSU-Next Submodule ---
+          echo "Patching KernelSU-Next submodule..."
+          
+          # 1. Apply the main SUSFS enablement patch
+          patch -p1 -d "${KSU_SUBMODULE_DIR}" --forward --fuzz=3 < "${SUSFS_REPO_DIR}/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch" || true
+
+          # 2. Find rejected hunks and apply corresponding fix patches
+          for rej_file in $(find "${KSU_SUBMODULE_DIR}/kernel" -maxdepth 2 -name "*.rej"); do
+            original_file=$(basename "$rej_file" .rej)
+            fix_patch_path="${PATCHES_REPO_DIR}/next/susfs_fix_patches/${SUSFS_VERSION}/fix_${original_file}.patch"
+            
+            if [ -f "$fix_patch_path" ]; then
+              echo "Applying fix for ${original_file}..."
+              patch -p1 -d "${KSU_SUBMODULE_DIR}" --forward < "$fix_patch_path"
+            else
+              echo "Warning: No fix patch found for ${original_file} at ${fix_patch_path}"
+            fi
+          done
+
+          # 3. Apply the final kernel_compat fix
+          patch -p1 -d "${KSU_SUBMODULE_DIR}" --forward < "${PATCHES_REPO_DIR}/next/susfs_fix_patches/${SUSFS_VERSION}/fix_kernel_compat.c.patch"
+
+          # --- Apply Patches to Common Kernel Source ---
+          echo "Patching common kernel source..."
+          patch -p1 -d common < "${SUSFS_REPO_DIR}/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch" || echo "SUSFS GKI patch may have already been applied."
+          patch -p1 -d common -F 3 < "${PATCHES_REPO_DIR}/69_hide_stuff.patch" || echo "Hide stuff patch may have already been applied."
+          patch -p1 -d common -F 3 < "${PATCHES_REPO_DIR}/next/scope_min_manual_hooks_v1.4.patch"
 
       - name: Configure Kernel
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform
