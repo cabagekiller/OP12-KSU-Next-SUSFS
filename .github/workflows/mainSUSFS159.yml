@@ -13,35 +13,31 @@ jobs:
   build-release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code with Submodules
+      - name: Checkout Code and Update Submodule
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: 'recursive'
+      - run: |
+          git submodule update --remote --merge
 
       - name: Setup Build Environment and Dependencies
         run: |
           set -euxo pipefail
-          # Free up disk space
+          # Free up disk space and install dependencies
           sudo apt-get update -qq && sudo apt-get install -y -qq curl
           curl -fsSL https://raw.githubusercontent.com/kou/arrow/e49d8ae15583ceff03237571569099a6ad62be32/ci/scripts/util_free_space.sh | bash
-          
-          # Install build dependencies
           sudo apt-get install -y --no-install-recommends \
             python3-pip curl git zip unzip gcc g++ make ninja-build file bc bison flex libssl-dev libelf-dev wget \
             build-essential python3-dev python3-setuptools rsync ccache
           
           # Install latest Pahole
           sudo apt-get remove --purge -y dwarves
-          sudo apt-get install -y git build-essential libdw-dev zlib1g-dev
           git clone --recurse-submodules https://git.kernel.org/pub/scm/devel/pahole/pahole.git
-          cd pahole
-          cmake .
-          sudo make install
+          cd pahole && cmake . && sudo make install && cd ..
           
           # Setup Python and repo tool
-          python3 -m pip install --upgrade pip
-          pip3 install gitpython xmltodict
+          python3 -m pip install --upgrade pip gitpython xmltodict
           mkdir -p "$HOME/bin"
           wget -O "$HOME/bin/repo" https://storage.googleapis.com/git-repo-downloads/repo
           chmod a+x "$HOME/bin/repo"
@@ -49,7 +45,7 @@ jobs:
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
 
-      - name: Cache ccache and Bazel
+      - name: Cache Build Tools
         uses: actions/cache@v4
         with:
           path: |
@@ -59,7 +55,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-build-cache-
 
-      - name: Configure Build Directories
+      - name: Configure Build Directories and KSU Version
         id: build_dirs
         run: |
           set -euxo pipefail
@@ -68,6 +64,10 @@ jobs:
           echo "BUILD_DIR=${BUILD_DIR}" >> $GITHUB_ENV
           echo "KERNEL_SRC_DIR=${KERNEL_SRC_DIR}" >> $GITHUB_ENV
           mkdir -p "${BUILD_DIR}"
+          # Calculate KSU Version from the original submodule checkout
+          cd "${GITHUB_WORKSPACE}/kernel_platform/KernelSU-Next/kernel"
+          KSU_VERSION=$(expr $(git rev-list --count HEAD) + 10200)
+          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
 
       - name: Clone External Repositories
         working-directory: ${{ env.BUILD_DIR }}
@@ -78,7 +78,7 @@ jobs:
           git clone https://github.com/cabagekiller/kernel_patches.git
 
       - name: Setup Kernel Source
-        working-directory: ${{ env.BUILD_DIR }} # CORRECTED: Run repo init from the parent build directory
+        working-directory: ${{ env.BUILD_DIR }}
         run: |
           set -euxo pipefail
           mkdir -p kernel_platform/oneplus12_v
@@ -92,13 +92,11 @@ jobs:
           set -euxo pipefail
           cp -r "${GITHUB_WORKSPACE}/kernel_platform/KernelSU-Next" "${{ env.KERNEL_SRC_DIR }}/kernel_platform/"
 
-      - name: Setup KernelSU Version
+      - name: Apply KernelSU Version to Makefile
         working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform/KernelSU-Next/kernel
         run: |
           set -euxo pipefail
-          KSU_VERSION=$(expr $(git rev-list --count HEAD) + 10200)
-          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" Makefile
+          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSUVER}/" Makefile
           
       - name: Setup SUSFS and Apply Patches
         working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform
@@ -116,22 +114,25 @@ jobs:
 
           # Apply patches to KernelSU-Next Submodule
           echo "Patching KernelSU-Next submodule..."
-          patch -p1 -d "${KSU_SUBMODULE_DIR}" --forward -F 3 < "${SUSFS_REPO_DIR}/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch" || true
+          cd "${KSU_SUBMODULE_DIR}"
+          cp "${SUSFS_REPO_DIR}/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch" ./
+          patch -p1 --forward -F 3 < 10_enable_susfs_for_ksu.patch || true
 
           # Find rejected hunks and apply corresponding fix patches
-          for rej_file in $(find "${KSU_SUBMODULE_DIR}/kernel" -maxdepth 2 -name "*.rej"); do
+          for rej_file in $(find ./kernel -maxdepth 2 -name "*.rej"); do
             original_file=$(basename "$rej_file" .rej)
             fix_patch_path="${PATCHES_REPO_DIR}/next/susfs_fix_patches/${SUSFS_VERSION}/fix_${original_file}.patch"
             
             if [ -f "$fix_patch_path" ]; then
               echo "Applying fix for ${original_file}..."
-              patch -p1 -d "${KSU_SUBMODULE_DIR}" --forward < "$fix_patch_path" || true
+              patch -p1 --forward < "$fix_patch_path" || true
             else
               echo "Warning: No fix patch found for ${original_file} at ${fix_patch_path}"
             fi
           done
           
-          patch -p1 -d "${KSU_SUBMODULE_DIR}" --forward < "${PATCHES_REPO_DIR}/next/susfs_fix_patches/${SUSFS_VERSION}/fix_kernel_compat.c.patch" || true
+          patch -p1 --forward < "${PATCHES_REPO_DIR}/next/susfs_fix_patches/${SUSFS_VERSION}/fix_kernel_compat.c.patch" || true
+          cd ..
 
           # Apply patches to common kernel source
           echo "Patching common kernel source..."
