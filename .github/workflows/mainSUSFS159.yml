@@ -85,6 +85,11 @@ jobs:
           repo sync -c -j"$(nproc)" --force-sync --no-clone-bundle --no-tags || { echo "Repo sync failed."; exit 1; }
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
 
+      - name: Integrate KernelSU Submodule
+        run: |
+          set -euxo pipefail
+          cp -r "${GITHUB_WORKSPACE}/kernel_platform/KernelSU-Next" "${BUILD_DIR}/${KERNEL_DIR}/kernel_platform/"
+
       - name: Setup KernelSU Version
         working-directory: ${{ env.BUILD_DIR }}/${{ env.KERNEL_DIR }}/kernel_platform/KernelSU-Next/kernel
         run: |
