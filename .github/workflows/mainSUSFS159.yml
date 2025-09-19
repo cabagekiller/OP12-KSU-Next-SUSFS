@@ -8,6 +8,11 @@ env:
   ROOT_DIR_PREFIX: "OP12-A15"
   BRANCH: "android14-6.1"
   SUSFS_VERSION: "v1.5.9"
+  KSU_PATCH_URL: "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh"
+
+defaults:
+  run:
+    shell: bash -euxo pipefail
 
 jobs:
   build-release:
@@ -16,30 +21,29 @@ jobs:
       - name: Checkout Code with Submodules
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # Fetch all history for git describe to work
           submodules: 'recursive'
 
-      - name: Setup Build Environment and Dependencies
+      - name: Free Up Disk Space and Install Dependencies
         run: |
-          set -euxo pipefail
-          # Free up disk space
-          sudo apt-get update -qq && sudo apt-get install -y -qq curl
+          # Free up disk space, this script also runs apt-get update
           curl -fsSL https://raw.githubusercontent.com/kou/arrow/e49d8ae15583ceff03237571569099a6ad62be32/ci/scripts/util_free_space.sh | bash
           
-          # Install build dependencies
+          # Remove conflicting packages and install all build dependencies in one go
+          sudo apt-get remove --purge -y dwarves
           sudo apt-get install -y --no-install-recommends \
             python3-pip curl git zip unzip gcc g++ make ninja-build file bc bison flex libssl-dev libelf-dev wget \
-            build-essential python3-dev python3-setuptools rsync ccache
-          
-          # Install latest Pahole
-          sudo apt-get remove --purge -y dwarves
-          sudo apt-get install -y git build-essential libdw-dev zlib1g-dev
+            build-essential python3-dev python3-setuptools rsync ccache \
+            libdw-dev zlib1g-dev
+
+          # Install latest Pahole from source, as pre-packaged versions are often too old for modern kernels
           git clone --recurse-submodules https://git.kernel.org/pub/scm/devel/pahole/pahole.git
           cd pahole
           cmake .
           sudo make install
+          cd ..
           
-          # Setup Python and repo tool
+          # Setup Python and Google's "repo" tool
           python3 -m pip install --upgrade pip
           pip3 install gitpython xmltodict
           mkdir -p "$HOME/bin"
@@ -55,12 +59,13 @@ jobs:
           path: |
             ~/.ccache
             ~/.cache/bazel
-          key: ${{ runner.os }}-build-cache-${{ hashFiles('**/CMakeLists.txt') }}
+          # The key is based on the workflow file itself. If the build process changes, the cache is invalidated.
+          key: ${{ runner.os }}-build-cache-${{ hashFiles('.github/workflows/mainSUSFS159.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-build-cache-
 
       - name: Configure Build Directories
-        id: build_dirs
         run: |
-          set -euxo pipefail
           BUILD_DIR="${GITHUB_WORKSPACE}/builds"
           KERNEL_SRC_DIR="${BUILD_DIR}/kernel_platform/oneplus12_v"
           echo "BUILD_DIR=${BUILD_DIR}" >> $GITHUB_ENV
@@ -70,7 +75,6 @@ jobs:
       - name: Clone External Repositories
         working-directory: ${{ env.BUILD_DIR }}
         run: |
-          set -euxo pipefail
           git clone --recursive https://github.com/WildKernels/AnyKernel3.git -b gki-2.0
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
           git clone https://github.com/cabagekiller/kernel_patches.git
@@ -78,32 +82,24 @@ jobs:
       - name: Setup Kernel Source
         working-directory: ${{ env.KERNEL_SRC_DIR }}
         run: |
-          set -euxo pipefail
           repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus12_v.xml --depth=1
-          repo sync -c -j"$(nproc)" --force-sync --no-clone-bundle --no-tags || { echo "Repo sync failed."; exit 1; }
+          repo sync -c -j"$(nproc)" --force-sync --no-clone-bundle --no-tags
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
 
-      - name: Integrate KernelSU Submodule
+      - name: Integrate KernelSU
+        working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform
         run: |
-          set -euxo pipefail
-          cp -r "${GITHUB_WORKSPACE}/kernel_platform/KernelSU-Next" "${KERNEL_SRC_DIR}/kernel_platform/"
-
-      - name: Setup KernelSU Version
-        working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform/KernelSU-Next/kernel
-        run: |
-          set -euxo pipefail
-          KSU_VERSION=$(expr $(git rev-list --count HEAD) + 10200)
+          # Use the official KernelSU setup script
+          curl -LSs "${KSU_PATCH_URL}" | bash
+          KSU_VERSION=$(expr $(git -C KernelSU rev-list --count HEAD) + 10200)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" Makefile
-          
+
       - name: Setup SUSFS and Apply Patches
         working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform
         run: |
-          set -euxo pipefail
-          # Corrected relative paths from this working directory
           SUSFS_REPO_DIR="../../susfs4ksu"
           PATCHES_REPO_DIR="../../kernel_patches"
-          KSU_SUBMODULE_DIR="KernelSU-Next"
+          KSU_SUBMODULE_DIR="KernelSU" # Official script clones to KernelSU
 
           # Copy SUSFS source files
           echo "Copying SUSFS source files..."
@@ -111,36 +107,37 @@ jobs:
           cp "${SUSFS_REPO_DIR}/kernel_patches/fs/"* ./common/fs/
           cp "${SUSFS_REPO_DIR}/kernel_patches/include/linux/"* ./common/include/linux/
 
-          # Apply patches to KernelSU-Next Submodule
-          echo "Patching KernelSU-Next submodule..."
-          patch -p1 -d "${KSU_SUBMODULE_DIR}" --forward -F 3 < "${SUSFS_REPO_DIR}/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch" || true
-
-          # Find rejected hunks and apply corresponding fix patches
-          for rej_file in $(find "${KSU_SUBMODULE_DIR}/kernel" -maxdepth 2 -name "*.rej"); do
-            original_file=$(basename "$rej_file" .rej)
-            fix_patch_path="${PATCHES_REPO_DIR}/next/susfs_fix_patches/${SUSFS_VERSION}/fix_${original_file}.patch"
-            
-            if [ -f "$fix_patch_path" ]; then
-              echo "Applying fix for ${original_file}..."
-              patch -p1 -d "${KSU_SUBMODULE_DIR}" --forward < "$fix_patch_path"
-            else
-              echo "Warning: No fix patch found for ${original_file} at ${fix_patch_path}"
-            fi
-          done
+          # Patch KernelSU. This patch is expected to fail sometimes, and is handled by fix-up patches.
+          echo "Patching KernelSU submodule..."
+          if ! patch -p1 -d "${KSU_SUBMODULE_DIR}" --forward -F 3 < "${SUSFS_REPO_DIR}/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch"; then
+            echo "Main SUSFS patch failed on KernelSU, attempting to apply fix patches..."
+            # Find rejected hunks and apply corresponding fix patches
+            for rej_file in $(find "${KSU_SUBMODULE_DIR}/kernel" -maxdepth 2 -name "*.rej"); do
+              original_file=$(basename "$rej_file" .rej)
+              fix_patch_path="${PATCHES_REPO_DIR}/next/susfs_fix_patches/${SUSFS_VERSION}/fix_${original_file}.patch"
+              if [ -f "$fix_patch_path" ]; then
+                echo "Applying fix for ${original_file}..."
+                patch -p1 -d "${KSU_SUBMODULE_DIR}" --forward < "$fix_patch_path"
+              else
+                echo "Warning: No fix patch found for ${original_file} at ${fix_patch_path}"
+              fi
+            done
+          else
+            echo "Main SUSFS patch applied cleanly to KernelSU."
+          fi
           
           patch -p1 -d "${KSU_SUBMODULE_DIR}" --forward < "${PATCHES_REPO_DIR}/next/susfs_fix_patches/${SUSFS_VERSION}/fix_kernel_compat.c.patch"
 
-          # Apply patches to common kernel source
+          # Apply patches to common kernel source. These must apply cleanly.
           echo "Patching common kernel source..."
-          patch -p1 -d common < "${SUSFS_REPO_DIR}/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch" || true
-          patch -p1 -d common -F 3 < "${PATCHES_REPO_DIR}/69_hide_stuff.patch" || true
-          patch -p1 -d common -F 3 < "${PATCHES_REPO_DIR}/next/scope_min_manual_hooks_v1.4.patch" || true
+          patch -p1 -d common < "${SUSFS_REPO_DIR}/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch"
+          patch -p1 -d common -F 3 < "${PATCHES_REPO_DIR}/69_hide_stuff.patch"
+          patch -p1 -d common -F 3 < "${PATCHES_REPO_DIR}/next/scope_min_manual_hooks_v1.4.patch"
 
       - name: Configure Kernel
         working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform
         run: |
-          set -euxo pipefail
-          # Apply kernel configurations
+          # Append custom kernel configurations to the GKI defconfig
           cat >> ./common/arch/arm64/configs/gki_defconfig <<EOF
           CONFIG_KSU=y
           CONFIG_KSU_SUSFS=y
@@ -149,35 +146,21 @@ jobs:
           CONFIG_KSU_SUSFS_SUS_MOUNT=y
           CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y
           CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y
-          CONFIG_KSU_SUSFS_SUS_KSTAT=y
-          CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y
-          CONFIG_KSU_SUSFS_TRY_UMOUNT=y
-          CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y
           CONFIG_KSU_SUSFS_SPOOF_UNAME=y
           CONFIG_KSU_SUSFS_ENABLE_LOG=y
           CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
           CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
           CONFIG_KSU_SUSFS_SUS_SU=n
-          CONFIG_KSU_WITH_KPROBES=n
-          CONFIG_KSU_KPROBES_HOOK=n
           CONFIG_COMPAT=y
           CONFIG_TMPFS_XATTR=y
           CONFIG_TMPFS_POSIX_ACL=y
           CONFIG_IP_NF_TARGET_TTL=y
           CONFIG_IP6_NF_TARGET_HL=y
-          CONFIG_IP6_NF_MATCH_HL=y
-          CONFIG_THREAD_INFO_IN_TASK=y
-          CONFIG_TCP_CONG_ADVANCED=y
-          CONFIG_TCP_CONG_BBR=y
-          CONFIG_TCP_CONG_BIC=n
-          CONFIG_TCP_CONG_WESTWOOD=n
-          CONFIG_TCP_CONG_HTCP=n
           CONFIG_NET_SCH_FQ=y
-          CONFIG_NET_SCH_FQ_CODEL=y
           EOF
 
-          # Remove defconfig check and apply branding
+          # Apply branding and build configuration tweaks
           sed -i 's/check_defconfig//' ./common/build.config.gki
           sed -i '$s|echo "\$res"|echo "\$res-Cabage"|' ./common/scripts/setlocalversion
           sed -i 's/-dirty//' ./common/scripts/setlocalversion
@@ -187,7 +170,6 @@ jobs:
       - name: Build Kernel
         working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform
         run: |
-          set -euxo pipefail
           mkdir -p out
           export PATH="/usr/lib/ccache:$PATH"
           ccache -z
@@ -200,27 +182,34 @@ jobs:
             
           ccache -s
 
-      - name: Package Kernel Zip
+      - name: Package Kernel and Prepare Release Info
+        id: package
         working-directory: ${{ env.BUILD_DIR }}
         run: |
-          set -euxo pipefail
           cd AnyKernel3
-          cp ../../${{ env.KERNEL_SRC_DIR }}/kernel_platform/out/dist/Image .
-          ZIP_NAME="Cabage-OP12-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
-          echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
+          cp ../kernel_platform/oneplus12_v/kernel_platform/out/dist/Image .
+
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          TAG_NAME="build-$(date +'%Y%m%d')-${SHORT_SHA}"
+          ZIP_NAME="Cabage-OP12-SUSFS-${TAG_NAME}.zip"
+
+          # The zip will be created in the parent directory, which is BUILD_DIR
           zip -r "../${ZIP_NAME}" ./*
 
+          echo "zip_name=${ZIP_NAME}" >> $GITHUB_OUTPUT
+          echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
+
       - name: Create GitHub Release
-        id: create_release
         uses: softprops/action-gh-release@v1
         with:
-          files: ${{ env.BUILD_DIR }}/${{ env.ZIP_NAME }}
-          tag_name: ${{ github.run_id }}-${{ github.run_number }}
-          name: "KernelSU-Next CI Build"
+          files: ${{ env.BUILD_DIR }}/${{ steps.package.outputs.zip_name }}
+          tag_name: ${{ steps.package.outputs.tag_name }}
+          name: "KernelSU CI Build ${{ steps.package.outputs.tag_name }}"
           body: |
             **Device:** ${{ env.ROOT_DIR_PREFIX }}
             **Branch:** ${{ env.BRANCH }}
             **KernelSU Version:** ${{ env.KSUVER }}
+            **Commit:** `${{ github.sha }}`
             
             Automated build from GitHub Actions.
 
