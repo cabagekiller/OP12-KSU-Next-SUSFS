@@ -55,7 +55,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-build-cache-
 
-      - name: Configure Build Directories and KSU Version
+      - name: Configure Build Directories
         id: build_dirs
         run: |
           set -euxo pipefail
@@ -64,10 +64,6 @@ jobs:
           echo "BUILD_DIR=${BUILD_DIR}" >> $GITHUB_ENV
           echo "KERNEL_SRC_DIR=${KERNEL_SRC_DIR}" >> $GITHUB_ENV
           mkdir -p "${BUILD_DIR}"
-          # Calculate KSU Version from the original submodule checkout
-          cd "${GITHUB_WORKSPACE}/kernel_platform/KernelSU-Next/kernel"
-          KSU_VERSION=$(expr $(git rev-list --count HEAD) + 10200)
-          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
 
       - name: Clone External Repositories
         working-directory: ${{ env.BUILD_DIR }}
@@ -92,11 +88,13 @@ jobs:
           set -euxo pipefail
           cp -r "${GITHUB_WORKSPACE}/kernel_platform/KernelSU-Next" "${{ env.KERNEL_SRC_DIR }}/kernel_platform/"
 
-      - name: Apply KernelSU Version to Makefile
+      - name: Setup KernelSU Version
         working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform/KernelSU-Next/kernel
         run: |
           set -euxo pipefail
-          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSUVER}/" Makefile
+          KSU_VERSION=$(expr $(git rev-list --count HEAD) + 10200)
+          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" Makefile
           
       - name: Setup SUSFS and Apply Patches
         working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform
