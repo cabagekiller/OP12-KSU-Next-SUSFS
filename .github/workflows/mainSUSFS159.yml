@@ -88,9 +88,11 @@ jobs:
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
 
       - name: Integrate KernelSU Submodule
+        working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform
         run: |
           set -euxo pipefail
-          cp -r "${GITHUB_WORKSPACE}/kernel_platform/KernelSU-Next" "${{ env.KERNEL_SRC_DIR }}/kernel_platform/"
+          #cp -r "${GITHUB_WORKSPACE}/kernel_platform/KernelSU-Next" "${{ env.KERNEL_SRC_DIR }}/kernel_platform/"
+          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
 
       - name: Apply KernelSU Version to Makefile
         working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform/KernelSU-Next/kernel
