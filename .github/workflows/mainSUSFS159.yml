@@ -127,7 +127,7 @@ jobs:
             
             if [ -f "$fix_patch_path" ]; then
               echo "Applying fix for ${original_file}..."
-              patch -p1 --forward < "$fix_patch_path" || true
+              patch -p1 --forward -F 3 < "$fix_patch_path" || true
             else
               echo "Warning: No fix patch found for ${original_file} at ${fix_patch_path}"
             fi
@@ -140,7 +140,7 @@ jobs:
           echo "Patching common kernel source..."
           patch -p1 -d common < "${SUSFS_REPO_DIR}/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch" || true
           patch -p1 -d common -F 3 < "${PATCHES_REPO_DIR}/69_hide_stuff.patch" || true
-          patch -p1 -d common -F 3 < "${PATCHES_REPO_DIR}/next/scope_min_manual_hooks_v1.4.patch" || true
+          patch -p1 -d common -F 3 < "${PATCHES_REPO_DIR}/next/scope_min_manual_hooks_v1.5.patch" || true
 
       - name: Configure Kernel
         working-directory: ${{ env.KERNEL_SRC_DIR }}/kernel_platform
