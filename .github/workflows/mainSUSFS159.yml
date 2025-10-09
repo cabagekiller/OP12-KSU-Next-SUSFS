@@ -139,7 +139,6 @@ jobs:
           # Apply patches to common kernel source
           echo "Patching common kernel source..."
           patch -p1 -d common < "${SUSFS_REPO_DIR}/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch" || true
-          patch -p1 -d common -F 3 < "${PATCHES_REPO_DIR}/69_hide_stuff.patch" || true
           patch -p1 -d common -F 3 < "${PATCHES_REPO_DIR}/next/scope_min_manual_hooks_v1.4.patch" || true
 
       - name: Configure Kernel
